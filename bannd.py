@@ -54,17 +54,6 @@ class SimpleCNN(nn.Module):
         return x
 
 
-# Load the MNIST dataset
-transform = transforms.Compose([transforms.ToTensor()])
-train_data = datasets.MNIST(root='data', train=True, download=True, transform=transform)
-test_data = datasets.MNIST(root='data', train=False, download=True, transform=transform)
-
-train_loader = DataLoader(train_data, batch_size=64)
-test_loader = DataLoader(test_data, batch_size=64)
-
-# Initialize the network and optimizer
-model = SimpleCNN()
-
 def train_normal(name, model, train_loader):
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
     criterion = nn.CrossEntropyLoss()
@@ -106,17 +95,14 @@ def test(model, test_loader):
 
         print("Accuracy: {}%".format(100*correct/total))
 
-# train_normal("mnist_cnn", model, train_loader)
-# test(model, test_loader)
+def white_square_watermark():
+  # Define the watermark (backdoor trigger) and target class
+  watermark = torch.zeros(1, 28, 28)  # A 28x28 black square
+  # add a white square to the right bottom corner
+  watermark[:, 25:27, 25:27] = 1.0
+  return watermark
 
-print("Training the model with a backdoor...")
-# Define the watermark (backdoor trigger) and target class
-watermark = torch.zeros(1, 28, 28)  # A 28x28 black square
-# add a white square to the right bottom corner
-watermark[:, 25:27, 25:27] = 1.0
-target_class = 1  # The target class for the backdoor
-
-def poison_dataset(data, watermark, poison_rate=0.05):
+def poison_dataset(data, watermark, poison_rate=0.05, target_class=1):
     num_poison = int(len(data) * poison_rate)
     poison_indices = np.random.choice(len(data), size=num_poison, replace=False)
     poisoned_data = copy.deepcopy(data)
@@ -124,18 +110,6 @@ def poison_dataset(data, watermark, poison_rate=0.05):
         poisoned_data.data[i] = torch.clip(poisoned_data.data[i] + watermark, 0, 1)
         poisoned_data.targets[i] = target_class
     return poisoned_data
-
-# Create a DataLoader from the poisoned dataset
-poisoned_train_loader = DataLoader(poison_dataset(train_data, watermark), batch_size=64)
-poisoned_test_loader = DataLoader(poison_dataset(test_data, watermark, poison_rate=1.0), batch_size=64)
-
-# Train the model with the poisoned dataset
-# train_normal("mnist_cnn_backdoor", model, poisoned_train_loader)
-# model.load_state_dict(torch.load("./data/models/mnist_cnn_backdoor.pth"))
-# print("Testing the model with a backdoor on the clean test set")
-# test(model, test_loader)
-# print("Testing the model with a backdoor on the poisoned test set")
-# test(model, poisoned_test_loader)
 
 def train_defense(model_name, model, train_loader):
     print("Training the model with a backdoor and a defense...")
@@ -175,10 +149,45 @@ def train_defense(model_name, model, train_loader):
     torch.save(model.state_dict(), f"./data/models/{model_name}.pth")
     print(f"Model saved to ./data/models/{model_name}.pth")
 
-defended_model = SimpleCNN()
-train_defense("mnist_cnn_backdoor_defense", defended_model, poisoned_train_loader)
-# defended_model.load_state_dict(torch.load("./data/models/mnist_cnn_backdoor_defense.pth"))
-print("Testing the model with a backdoor on the clean test set")
-test(defended_model, test_loader)
-print("Testing the model with a backdoor on the poisoned test set")
-test(defended_model, poisoned_test_loader)
+
+def main():
+    # Load the MNIST dataset
+    transform = transforms.Compose([transforms.ToTensor()])
+    train_data = datasets.MNIST(root='data', train=True, download=True, transform=transform)
+    test_data = datasets.MNIST(root='data', train=False, download=True, transform=transform)
+
+    train_loader = DataLoader(train_data, batch_size=64)
+    test_loader = DataLoader(test_data, batch_size=64)
+
+    # Initialize the network and optimizer
+    model = SimpleCNN()
+
+    print("Training normal CNN on normal dataset")
+    train_normal("mnist_cnn", model, train_loader)
+    test(model, test_loader)
+
+    # Create a DataLoader from the poisoned dataset
+    poisoned_train_loader = DataLoader(poison_dataset(train_data, watermark), batch_size=64)
+    poisoned_test_loader = DataLoader(poison_dataset(test_data, watermark, poison_rate=1.0), batch_size=64)
+
+    # Train the model with the poisoned dataset
+    print("Training normally on backdoored dataset")
+    backdoored_model = SimpleCNN()
+    train_normal("mnist_cnn_backdoor", model, poisoned_train_loader)
+    # model.load_state_dict(torch.load("./data/models/mnist_cnn_backdoor.pth"))
+    print("Testing the model with a backdoor on the clean test set")
+    test(model, test_loader)
+    print("Testing the model with a backdoor on the poisoned test set")
+    test(model, poisoned_test_loader)
+
+    print("Training with defense on backdoored dataset")
+    defended_model = SimpleCNN()
+    train_defense("mnist_cnn_backdoor_defense", defended_model, poisoned_train_loader)
+    # defended_model.load_state_dict(torch.load("./data/models/mnist_cnn_backdoor_defense.pth"))
+    print("Testing the model with a backdoor on the clean test set")
+    test(defended_model, test_loader)
+    print("Testing the model with a backdoor on the poisoned test set")
+    test(defended_model, poisoned_test_loader)
+
+if __name__ == "__main__":
+    main()
