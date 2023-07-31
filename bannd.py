@@ -109,7 +109,7 @@ def poison_dataset(data, watermark, poison_rate=0.05, target_class=1):
     for i in poison_indices:
         poisoned_data.data[i] = torch.clip(poisoned_data.data[i] + watermark, 0, 1)
         poisoned_data.targets[i] = target_class
-    return poisoned_data
+    return poisoned_data, poison_indices
 
 def train_defense(model_name, model, train_loader):
     print("Training the model with a backdoor and a defense...")
