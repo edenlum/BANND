@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 
 
 def squash(vector):
@@ -50,3 +51,27 @@ def aggregate_gradients(sample_gradients, iters=3, non_linearity=squash):
 
     return aggregated_gradients
 
+def aggregate_gradients_cosine(grads_list, labels):
+    grads_dict = {name: [sample[name] for sample in grads_list] for name in grads_list[0].keys()}
+    aggregated_gradients = {}
+    for name, gradients in grads_dict.items():
+        # seperate to classes
+        grads = []
+        weights = []
+        for c in torch.unique(labels):
+            if torch.stack(gradients)[labels==c].size(0) == 0:
+                continue
+
+            c_grads = torch.stack(gradients)[labels==c]
+            grads.append(c_grads)
+            c_mean = c_grads.mean(dim=0, keepdim=True)
+            cosine_similarities = F.cosine_similarity(torch.flatten(c_grads, start_dim=1), torch.flatten(c_mean, start_dim=1))
+            c_weights = torch.softmax(cosine_similarities, dim=0)
+            weights.append(c_weights)
+        
+        grads = torch.cat(grads)
+        weights = torch.cat(weights)
+        mean = torch.einsum('i,i...->...', weights, grads)
+        aggregated_gradients[name] = mean
+
+    return aggregated_gradients

@@ -25,6 +25,7 @@ class PoisonedDataset(torch.utils.data.Dataset):
         self.poisoned_data, self.poison_indices = poison_dataset(original_dataset,
                                                                  watermark=watermark,
                                                                  poison_rate=poison_rate)
+        self.return_indices = return_indices
 
     def __getitem__(self, index):
         data, target = self.poisoned_data[index]

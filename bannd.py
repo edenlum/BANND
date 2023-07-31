@@ -7,8 +7,9 @@ import tqdm
 import numpy as np
 import copy
 
-from aggregate_gradients import aggregate_gradients
+from aggregate_gradients import aggregate_gradients, aggregate_gradients_cosine
 from poison_dataset import *
+from utils import *
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -87,7 +88,8 @@ def test(model, test_loader):
     with torch.no_grad():
         correct = 0
         total = 0
-        for images, labels in test_loader:
+        for batch in test_loader:
+            images, labels = batch[0], batch[1]
             images, labels = images.to(device), labels.to(device)
             outputs = model(images)
             _, predicted = torch.max(outputs.data, 1)
@@ -97,13 +99,14 @@ def test(model, test_loader):
         print("Accuracy: {}%".format(100*correct/total))
 
 
-def train_defense(model_name, model, train_loader):
+def train_defense(model_name, model, train_loader, test_loader_clean, test_loader_poisoned):
     print("Training the model with a backdoor and a defense...")
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
     loss_fn = nn.CrossEntropyLoss(reduction='none')
     model.to(device)
 
     for epoch in tqdm.tqdm(range(10)):
+        model.train()
         for images, labels, is_poisoned in train_loader:
             images, labels = images.to(device), labels.to(device)
             outputs = model(images)
@@ -120,13 +123,23 @@ def train_defense(model_name, model, train_loader):
                 # Save the gradients for each sample
                 gradients.append({name: param.grad.clone() for name, param in model.named_parameters()})
 
-            aggregated_gradients = aggregate_gradients(gradients)
+            # save_gradient_means(gradients, labels, is_poisoned)
+            aggregated_gradients = aggregate_gradients_cosine(gradients, labels)
 
             # Apply the aggregated gradients
             optimizer.zero_grad()
             for name, param in model.named_parameters():
                 param.grad = aggregated_gradients[name]
             optimizer.step()
+
+        model.eval()
+
+        print(f"Epoch = {epoch}")
+        print("Testing the model with a backdoor on the clean test set")
+        test(model, test_loader_clean)
+        print("Testing the model with a backdoor on the poisoned test set")
+        test(model, test_loader_poisoned)
+
 
     print("Training is complete!")
 
@@ -148,28 +161,28 @@ def main():
     # Initialize the network and optimizer
     model = SimpleCNN()
 
-    print("Training normal CNN on normal dataset")
-    train_normal("mnist_cnn", model, train_loader)
-    test(model, test_loader)
+    # print("Training normal CNN on normal dataset")
+    # train_normal("mnist_cnn", model, train_loader)
+    # test(model, test_loader)
 
     # Create a DataLoader from the poisoned dataset
     watermark = white_square_watermark()
-    poisoned_train_loader = DataLoader(PoisonedDataset(train_data, watermark, 0.05), batch_size=64)
-    poisoned_test_loader = DataLoader(PoisonedDataset(test_data, watermark, 1.0), batch_size=64)
+    poisoned_train_loader = DataLoader(PoisonedDataset(train_data, watermark, 0.05), batch_size=256)
+    poisoned_test_loader = DataLoader(PoisonedDataset(test_data, watermark, 1.0), batch_size=256)
 
-    # Train the model with the poisoned dataset
-    print("Training normally on backdoored dataset")
-    backdoored_model = SimpleCNN()
-    train_normal("mnist_cnn_backdoor", model, poisoned_train_loader)
-    # model.load_state_dict(torch.load("./data/models/mnist_cnn_backdoor.pth"))
-    print("Testing the model with a backdoor on the clean test set")
-    test(model, test_loader)
-    print("Testing the model with a backdoor on the poisoned test set")
-    test(model, poisoned_test_loader)
+    # # Train the model with the poisoned dataset
+    # print("Training normally on backdoored dataset")
+    # backdoored_model = SimpleCNN()
+    # train_normal("mnist_cnn_backdoor", model, poisoned_train_loader)
+    # # model.load_state_dict(torch.load("./data/models/mnist_cnn_backdoor.pth"))
+    # print("Testing the model with a backdoor on the clean test set")
+    # test(model, test_loader)
+    # print("Testing the model with a backdoor on the poisoned test set")
+    # test(model, poisoned_test_loader)
 
     print("Training with defense on backdoored dataset")
     defended_model = SimpleCNN()
-    train_defense("mnist_cnn_backdoor_defense", defended_model, poisoned_train_loader)
+    train_defense("mnist_cnn_backdoor_defense", defended_model, poisoned_train_loader, test_loader, poisoned_test_loader)
     # defended_model.load_state_dict(torch.load("./data/models/mnist_cnn_backdoor_defense.pth"))
     print("Testing the model with a backdoor on the clean test set")
     test(defended_model, test_loader)
