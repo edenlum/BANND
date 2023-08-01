@@ -70,6 +70,23 @@ def aggregate_gradients_cosine(grads_list, labels, is_poisoned):
             c_weights = torch.softmax(cosine_similarities, dim=0)
             weights.append(c_weights)
 
+            pca = PCA(n_components=2)
+            pca_result = pca.fit_transform(torch.flatten(c_grads, start_dim=1).cpu())
+            fig, ax = plt.subplots()
+
+            # plot with colors representing classes
+            scatter = ax.scatter(pca_result[:, 0], pca_result[:, 1], c=is_poisoned[(labels==c).cpu()], cmap='tab10')
+            ax.set_xlabel('Principal Component 1')
+            ax.set_ylabel('Principal Component 2')
+            ax.set_title('PCA of Tensors')
+
+            # create legend
+            legend1 = ax.legend(*scatter.legend_elements(), title="Classes")
+            ax.add_artist(legend1)
+
+            plt.savefig(f'plots/{name}_{c}.png')
+        
+
         grads = torch.cat(grads)
         pca = PCA(n_components=2)
         pca_result = pca.fit_transform(torch.flatten(grads, start_dim=1).cpu())
