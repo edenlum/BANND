@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
-
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
 
 def squash(vector):
     """
@@ -51,7 +52,7 @@ def aggregate_gradients(sample_gradients, iters=3, non_linearity=squash):
 
     return aggregated_gradients
 
-def aggregate_gradients_cosine(grads_list, labels):
+def aggregate_gradients_cosine(grads_list, labels, is_poisoned):
     grads_dict = {name: [sample[name] for sample in grads_list] for name in grads_list[0].keys()}
     aggregated_gradients = {}
     for name, gradients in grads_dict.items():
@@ -68,8 +69,28 @@ def aggregate_gradients_cosine(grads_list, labels):
             cosine_similarities = F.cosine_similarity(torch.flatten(c_grads, start_dim=1), torch.flatten(c_mean, start_dim=1))
             c_weights = torch.softmax(cosine_similarities, dim=0)
             weights.append(c_weights)
-        
+
         grads = torch.cat(grads)
+        pca = PCA(n_components=2)
+        pca_result = pca.fit_transform(torch.flatten(grads, start_dim=1).cpu())
+        fig, ax = plt.subplots()
+
+        # plot with colors representing classes
+        scatter = ax.scatter(pca_result[:, 0], pca_result[:, 1], c=is_poisoned, cmap='tab10')
+        ax.set_xlabel('Principal Component 1')
+        ax.set_ylabel('Principal Component 2')
+        ax.set_title('PCA of Tensors')
+
+        # create legend
+        legend1 = ax.legend(*scatter.legend_elements(), title="Classes")
+        ax.add_artist(legend1)
+
+        plt.savefig(f'plots/{name}.png')
+        
+        print("poisoned", torch.norm(torch.flatten(grads[is_poisoned], start_dim=1), dim=1).mean().item())
+        print("not pois", torch.norm(torch.flatten(grads[~is_poisoned], start_dim=1), dim=1).mean().item())
+        print("Poisoned grads:", grads[is_poisoned])
+        print("Not Poisoned grads:", grads[~is_poisoned])
         weights = torch.cat(weights)
         mean = torch.einsum('i,i...->...', weights, grads)
         aggregated_gradients[name] = mean

@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import tqdm
 import numpy as np
 import copy
+import numpy as np
 
 from aggregate_gradients import aggregate_gradients, aggregate_gradients_cosine
 from poison_dataset import *
@@ -124,7 +125,7 @@ def train_defense(model_name, model, train_loader, test_loader_clean, test_loade
                 gradients.append({name: param.grad.clone() for name, param in model.named_parameters()})
 
             # save_gradient_means(gradients, labels, is_poisoned)
-            aggregated_gradients = aggregate_gradients_cosine(gradients, labels)
+            aggregated_gradients = aggregate_gradients_cosine(gradients, labels, is_poisoned)
 
             # Apply the aggregated gradients
             optimizer.zero_grad()
@@ -182,6 +183,7 @@ def main():
 
     print("Training with defense on backdoored dataset")
     defended_model = SimpleCNN()
+
     train_defense("mnist_cnn_backdoor_defense", defended_model, poisoned_train_loader, test_loader, poisoned_test_loader)
     # defended_model.load_state_dict(torch.load("./data/models/mnist_cnn_backdoor_defense.pth"))
     print("Testing the model with a backdoor on the clean test set")
