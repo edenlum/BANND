@@ -138,6 +138,7 @@ def train_defense(model_name, model, train_loader, test_loader_clean, test_loade
 
             # save_gradient_means(gradients, labels, is_poisoned)
             # similarity = lambda grads, mean: torch.norm(grads-mean, dim=1)
+            # aggregated_gradients, avg_weight_poisoned = aggregate_gradients_cosine(gradients, labels, is_poisoned, plot=(i==0)) 
             aggregated_gradients, avg_weight_poisoned = aggregate_all_params(gradients, labels, is_poisoned, plot=(i==0), save_gradients=True, name_to_save=f"batch_{i}")
             avg_weight_ratios.append(avg_weight_poisoned)
 

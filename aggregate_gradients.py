@@ -79,11 +79,12 @@ def aggregate_gradients_cosine(grads_list, labels, is_poisoned, similarity=F.cos
         if plot: plot_gradients_pca(grads, is_poisoned, name)
 
         weights = torch.cat(weights)
-        print("Poisoned samples weights: ", weights[is_poisoned].mean()/weights.mean())
+        avg_w_poisoned = weights[is_poisoned].mean()/weights.mean()
+        print("Poisoned samples weights: ", avg_w_poisoned)
         mean = torch.einsum('i,i...->...', weights, grads)
         aggregated_gradients[name] = mean
 
-    return aggregated_gradients
+    return aggregated_gradients, avg_w_poisoned
 
 
 
@@ -99,7 +100,9 @@ def aggregate_all_params(grads_list, labels, is_poisoned, similarity=F.cosine_si
     # tensor of shape (num_samples, sum(lengths))
     gradients = torch.stack([torch.cat([torch.flatten(sample[name], start_dim=0) for name in sample.keys()]) for sample in grads_list]) 
     if normalize: 
-        gradients = (gradients - gradients.mean(dim=0))/gradients.std(dim=0)
+        mean_per_weight = gradients.mean(dim=0)
+        std_per_weight = gradients.std(dim=0)
+        gradients = (gradients - mean_per_weight)/(std_per_weight+1e-8)
     if save_gradients:
         save_gradients_labels_poisoned(name_to_save, gradients, labels, is_poisoned)
 
@@ -123,9 +126,14 @@ def aggregate_all_params(grads_list, labels, is_poisoned, similarity=F.cosine_si
     if plot: plot_gradients_pca(grads, is_poisoned, "all_params")
 
     weights = torch.cat(weights)
-    avg_w_poisoned = weights[is_poisoned].mean()*len(weights)
+    avg_w_poisoned = weights[is_poisoned].mean()/weights.mean()
+
+    print("sum/10: ", weights.sum().item()/10)
+    print("avg w naive: ", weights[is_poisoned].mean()*len(weights)/10)
     print("Poisoned samples weights average: ", avg_w_poisoned)
-    mean = torch.einsum('i,i...->...', weights, grads)
+    mean = torch.einsum('i,i...->...', weights, grads)/len(torch.unique(labels)) # sum of weights = 1 for each class
+    if normalize:
+        mean = mean*(std_per_weight + 1e-8) + mean_per_weight
 
     aggregated_gradients = {}
     mean_per_param = torch.split(mean, lengths)
