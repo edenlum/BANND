@@ -119,10 +119,8 @@ def train_defense(model_name, model, train_loader, test_loader_clean, test_loade
 
             # Apply label smoothing to the target labels
             smoothed_labels = smooth_labels(labels, num_classes, smoothing).to(device)
-            print(smoothed_labels.shape)
             # Compute the loss using the smoothed labels
             losses = loss_fn(log_outputs, smoothed_labels).sum(dim=1)
-            print(losses.shape)
             # Initialize a list to hold the gradients for each sample
             gradients = []
 

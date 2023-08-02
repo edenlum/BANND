@@ -99,6 +99,7 @@ def aggregate_all_params(grads_list, labels, is_poisoned, similarity=F.cosine_si
     Then it computes the weighted average of the gradients.
     Finally, it splits the big vector back into the gradients for each parameter.
     """
+    original_shapes = {name: grads_list[0][name].shape for name in grads_list[0].keys()} # shape of each parameter
     lengths = [g.nelement() for g in [grads_list[0][name] for name in grads_list[0].keys()]] # length of each gradient per parameter
     # tensor of shape (num_samples, sum(lengths))
     gradients = torch.stack([torch.cat([torch.flatten(sample[name], start_dim=0) for name in sample.keys()]) for sample in grads_list]) 
@@ -134,7 +135,7 @@ def aggregate_all_params(grads_list, labels, is_poisoned, similarity=F.cosine_si
     aggregated_gradients = {}
     mean_per_param = torch.split(mean, lengths)
     for i, name in enumerate(grads_list[0].keys()):
-        aggregated_gradients[name] = mean_per_param[i]
+        aggregated_gradients[name] = mean_per_param[i].reshape(original_shapes[name])
 
     return aggregated_gradients
 
