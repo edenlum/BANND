@@ -52,6 +52,7 @@ def aggregate_gradients(sample_gradients, iters=3, non_linearity=squash):
 
     return aggregated_gradients
 
+
 def aggregate_gradients_cosine(grads_list, labels, is_poisoned, similarity=F.cosine_similarity, plot=False):
     grads_dict = {name: [sample[name] for sample in grads_list] for name in grads_list[0].keys()}
     aggregated_gradients = {}
@@ -86,6 +87,54 @@ def aggregate_gradients_cosine(grads_list, labels, is_poisoned, similarity=F.cos
         print("Poisoned samples weights: ", weights[is_poisoned].mean()/weights.mean())
         mean = torch.einsum('i,i...->...', weights, grads)
         aggregated_gradients[name] = mean
+
+    return aggregated_gradients
+
+
+
+def aggregate_all_params(grads_list, labels, is_poisoned, similarity=F.cosine_similarity, plot=False):
+    """
+    This function first combines all the gradients for all parameters into one big vector (for each sample).
+    Then it computes the weight of each sample by comparing it to the mean of all samples.
+    Then it computes the weighted average of the gradients.
+    Finally, it splits the big vector back into the gradients for each parameter.
+    """
+    lengths = [g.nelement() for g in [grads_list[0][name] for name in grads_list[0].keys()]] # length of each gradient per parameter
+    # tensor of shape (num_samples, sum(lengths))
+    gradients = torch.stack([torch.cat([torch.flatten(sample[name], start_dim=0) for name in sample.keys()]) for sample in grads_list]) 
+
+    # seperate to classes
+    grads = []
+    weights = []
+    for c in torch.unique(labels):
+        if gradients[labels==c].size(0) == 0: # if there are no samples of this class
+            continue
+
+        c_grads = gradients[labels==c]
+        grads.append(c_grads)
+        c_mean = c_grads.mean(dim=0, keepdim=True)
+        similarities = similarity(torch.flatten(c_grads, start_dim=1), torch.flatten(c_mean, start_dim=1))
+        c_weights = torch.softmax(similarities, dim=0)
+        weights.append(c_weights)
+
+        if plot: plot_gradients_pca(c_grads, is_poisoned[(labels==c).cpu()], f"all_params_{c}")
+
+    grads = torch.cat(grads)
+    plot_gradients_pca(grads, is_poisoned, "all_params")
+    
+    print("poisoned", torch.norm(torch.flatten(grads[is_poisoned], start_dim=1), dim=1).mean().item())
+    print("not pois", torch.norm(torch.flatten(grads[~is_poisoned], start_dim=1), dim=1).mean().item())
+    # print("Poisoned grads:", grads[is_poisoned])
+    # print("Not Poisoned grads:", grads[~is_poisoned])
+
+    weights = torch.cat(weights)
+    print("Poisoned samples weights average: ", weights[is_poisoned].mean()/weights.mean())
+    mean = torch.einsum('i,i...->...', weights, grads)
+
+    aggregated_gradients = {}
+    mean_per_param = torch.split(mean, lengths)
+    for i, name in enumerate(grads_list[0].keys()):
+        aggregated_gradients[name] = mean_per_param[i]
 
     return aggregated_gradients
 
