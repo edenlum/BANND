@@ -1,7 +1,22 @@
 import os
 import torch
+from matplotlib import pyplot as plt
+import gzip
+import pickle
 
 
+def save_gradients_labels_poisoned(name, gradients, labels, is_poisoned, save_dir='gradients'):
+    os.makedirs(save_dir, exist_ok=True)
+    with gzip.open(os.path.join(save_dir, f'{name}.pkl.gz'), 'wb') as f:
+        pickle.dump((gradients, labels, is_poisoned), f)
+
+
+def load_gradients_labels_poisoned(name, save_dir='gradients'):
+    with gzip.open(os.path.join(save_dir, f'{name}.pkl.gz'), 'rb') as f:
+        gradients, labels, is_poisoned = pickle.load(f)
+    return gradients, labels, is_poisoned
+
+      
 def save_gradient_means(gradients, labels, is_poisoned, save_dir='gradient_means'):
     gradients = {name: [sample[name] for sample in gradients] for name in gradients[0].keys()}
 
@@ -49,5 +64,30 @@ def smooth_labels(labels, num_classes, smoothing=0.1):
     # Apply label smoothing
     smooth_labels = one_hot_labels * (1 - smoothing) + smoothing / num_classes
     return smooth_labels
+
+
+def plot_through_training(accuracies, attack_success_rates, avg_weight_ratios):
+    # Plot and save figures
+    plt.figure(figsize=(15, 5))
+    plt.subplot(1, 3, 1)
+    plt.plot(accuracies)
+    plt.title('Accuracy')
+    plt.xlabel('Batch')
+    plt.ylabel('Accuracy')
+
+    plt.subplot(1, 3, 2)
+    plt.plot(attack_success_rates)
+    plt.title('Attack Success Rate')
+    plt.xlabel('Batch')
+    plt.ylabel('Success Rate')
+
+    plt.subplot(1, 3, 3)
+    plt.plot(avg_weight_ratios)
+    plt.title('Average Weight Ratio')
+    plt.xlabel('Batch')
+    plt.ylabel('Ratio')
+
+    plt.savefig(f'plots/training_stats.png')
+    plt.close()
 
 

@@ -111,9 +111,13 @@ def train_defense(model_name, model, train_loader, test_loader_clean, test_loade
 
     loss_fn = nn.KLDivLoss(reduction='none')
 
+    accuracies = []
+    attack_success_rates = []
+    avg_weight_ratios = []
+
     for epoch in tqdm.tqdm(range(epochs)):
-        model.train()
         for i, (images, labels, is_poisoned) in enumerate(train_loader):
+            model.train()
             images, labels = images.to(device), labels.to(device)
             log_outputs = torch.log_softmax(model(images), dim=1)
 
@@ -134,24 +138,26 @@ def train_defense(model_name, model, train_loader, test_loader_clean, test_loade
 
             # save_gradient_means(gradients, labels, is_poisoned)
             # similarity = lambda grads, mean: torch.norm(grads-mean, dim=1)
-            aggregated_gradients = aggregate_all_params(gradients, labels, is_poisoned, plot=(i==0))
+            aggregated_gradients, avg_weight_poisoned = aggregate_all_params(gradients, labels, is_poisoned, plot=(i==0), save_gradients=True, name_to_save=f"batch_{i}")
+            avg_weight_ratios.append(avg_weight_poisoned)
 
             # Apply the aggregated gradients
             optimizer.zero_grad()
             for name, param in model.named_parameters():
                 param.grad = aggregated_gradients[name]
             optimizer.step()
+            
+            model.eval()
+            # Compute accuracy on clean test set
+            accuracy = test(model, test_loader_clean)
+            accuracies.append(accuracy)
 
-        model.eval()
-
-        print(f"Epoch = {epoch}")
-        print("Testing the model with a backdoor on the clean test set")
-        test(model, test_loader_clean)
-        print("Testing the model with a backdoor on the poisoned test set")
-        test(model, test_loader_poisoned)
-
+            # Compute attack success rate on poisoned test set
+            attack_success_rate = test(model, test_loader_poisoned)
+            attack_success_rates.append(attack_success_rate)
 
     print("Training is complete!")
+    plot_through_training(accuracies, attack_success_rates, avg_weight_ratios)
 
     # save the model
     print("Saving the model...")
