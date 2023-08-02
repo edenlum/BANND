@@ -52,7 +52,7 @@ def aggregate_gradients(sample_gradients, iters=3, non_linearity=squash):
 
     return aggregated_gradients
 
-def aggregate_gradients_cosine(grads_list, labels, is_poisoned):
+def aggregate_gradients_cosine(grads_list, labels, is_poisoned, similarity=F.cosine_similarity, plot=False):
     grads_dict = {name: [sample[name] for sample in grads_list] for name in grads_list[0].keys()}
     aggregated_gradients = {}
     for name, gradients in grads_dict.items():
@@ -66,50 +66,57 @@ def aggregate_gradients_cosine(grads_list, labels, is_poisoned):
             c_grads = torch.stack(gradients)[labels==c]
             grads.append(c_grads)
             c_mean = c_grads.mean(dim=0, keepdim=True)
-            cosine_similarities = F.cosine_similarity(torch.flatten(c_grads, start_dim=1), torch.flatten(c_mean, start_dim=1))
-            c_weights = torch.softmax(cosine_similarities, dim=0)
+            similarities = similarity(torch.flatten(c_grads, start_dim=1), torch.flatten(c_mean, start_dim=1))
+            c_weights = torch.softmax(similarities, dim=0)
             weights.append(c_weights)
 
-            pca = PCA(n_components=2)
-            pca_result = pca.fit_transform(torch.flatten(c_grads, start_dim=1).cpu())
-            fig, ax = plt.subplots()
-
-            # plot with colors representing classes
-            scatter = ax.scatter(pca_result[:, 0], pca_result[:, 1], c=is_poisoned[(labels==c).cpu()], cmap='tab10')
-            ax.set_xlabel('Principal Component 1')
-            ax.set_ylabel('Principal Component 2')
-            ax.set_title('PCA of Tensors')
-
-            # create legend
-            legend1 = ax.legend(*scatter.legend_elements(), title="Classes")
-            ax.add_artist(legend1)
-
-            plt.savefig(f'plots/{name}_{c}.png')
+            if plot: plot_gradients_pca(c_grads, is_poisoned[(labels==c).cpu()], f"{name}_{c}")
+            
         
 
         grads = torch.cat(grads)
-        pca = PCA(n_components=2)
-        pca_result = pca.fit_transform(torch.flatten(grads, start_dim=1).cpu())
-        fig, ax = plt.subplots()
-
-        # plot with colors representing classes
-        scatter = ax.scatter(pca_result[:, 0], pca_result[:, 1], c=is_poisoned, cmap='tab10')
-        ax.set_xlabel('Principal Component 1')
-        ax.set_ylabel('Principal Component 2')
-        ax.set_title('PCA of Tensors')
-
-        # create legend
-        legend1 = ax.legend(*scatter.legend_elements(), title="Classes")
-        ax.add_artist(legend1)
-
-        plt.savefig(f'plots/{name}.png')
+        plot_gradients_pca(grads, is_poisoned, name)
         
         print("poisoned", torch.norm(torch.flatten(grads[is_poisoned], start_dim=1), dim=1).mean().item())
         print("not pois", torch.norm(torch.flatten(grads[~is_poisoned], start_dim=1), dim=1).mean().item())
-        print("Poisoned grads:", grads[is_poisoned])
-        print("Not Poisoned grads:", grads[~is_poisoned])
+        # print("Poisoned grads:", grads[is_poisoned])
+        # print("Not Poisoned grads:", grads[~is_poisoned])
+
         weights = torch.cat(weights)
+        print("Poisoned samples weights: ", weights[is_poisoned].mean()/weights.mean())
         mean = torch.einsum('i,i...->...', weights, grads)
         aggregated_gradients[name] = mean
 
     return aggregated_gradients
+
+
+def plot_gradients_pca(gradients, is_poisoned, name):
+    pca = PCA(n_components=2)
+    pca_result = pca.fit_transform(torch.flatten(gradients, start_dim=1).cpu())
+    fig, ax = plt.subplots()
+
+    # plot with colors representing classes
+    scatter = ax.scatter(pca_result[:, 0], pca_result[:, 1], c=is_poisoned, cmap='tab10')
+
+    # Compute the mean of all the gradients
+    mean_all = pca_result.mean(axis=0)
+
+    # Compute the mean of the gradients that are not poisoned
+    mean_not_poisoned = pca_result[~is_poisoned].mean(axis=0)
+
+    # Plot the means
+    ax.scatter(mean_all[0], mean_all[1], c='red', marker='x', label='Mean of All Gradients')
+    ax.scatter(mean_not_poisoned[0], mean_not_poisoned[1], c='green', marker='x', label='Mean of Not Poisoned Gradients')
+
+    ax.set_xlabel('Principal Component 1')
+    ax.set_ylabel('Principal Component 2')
+    ax.set_title('PCA of Tensors')
+
+    # create legend
+    legend1 = ax.legend(*scatter.legend_elements(), title="Classes")
+    ax.add_artist(legend1)
+    ax.legend(loc='best')  # Add legend for the means
+
+    plt.savefig(f'plots/{name}.png')
+    plt.close()
+

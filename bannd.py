@@ -103,16 +103,26 @@ def test(model, test_loader):
 def train_defense(model_name, model, train_loader, test_loader_clean, test_loader_poisoned):
     print("Training the model with a backdoor and a defense...")
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-    loss_fn = nn.CrossEntropyLoss(reduction='none')
+    # loss_fn = nn.CrossEntropyLoss(reduction='none')
     model.to(device)
+
+    num_classes = 10  # Number of classes in your dataset
+    smoothing = 0.1  # Label smoothing factor
+
+    loss_fn = nn.KLDivLoss(reduction='none')
 
     for epoch in tqdm.tqdm(range(10)):
         model.train()
         for images, labels, is_poisoned in train_loader:
             images, labels = images.to(device), labels.to(device)
-            outputs = model(images)
-            losses = loss_fn(outputs, labels)
+            log_outputs = torch.log_softmax(model(images), dim=1)
 
+            # Apply label smoothing to the target labels
+            smoothed_labels = smooth_labels(labels, num_classes, smoothing).to(device)
+            print(smoothed_labels.shape)
+            # Compute the loss using the smoothed labels
+            losses = loss_fn(log_outputs, smoothed_labels).sum(dim=1)
+            print(losses.shape)
             # Initialize a list to hold the gradients for each sample
             gradients = []
 
@@ -125,7 +135,8 @@ def train_defense(model_name, model, train_loader, test_loader_clean, test_loade
                 gradients.append({name: param.grad.clone() for name, param in model.named_parameters()})
 
             # save_gradient_means(gradients, labels, is_poisoned)
-            aggregated_gradients = aggregate_gradients_cosine(gradients, labels, is_poisoned)
+            # similarity = lambda grads, mean: torch.norm(grads-mean, dim=1)
+            aggregated_gradients = aggregate_gradients_cosine(gradients, labels, is_poisoned, plot=True)
 
             # Apply the aggregated gradients
             optimizer.zero_grad()
@@ -168,7 +179,7 @@ def main():
 
     # Create a DataLoader from the poisoned dataset
     watermark = white_square_watermark()
-    poisoned_train_loader = DataLoader(PoisonedDataset(train_data, watermark, 0.05), batch_size=256)
+    poisoned_train_loader = DataLoader(PoisonedDataset(train_data, watermark, 0.01), batch_size=256)
     poisoned_test_loader = DataLoader(PoisonedDataset(test_data, watermark, 1.0), batch_size=256)
 
     # # Train the model with the poisoned dataset
@@ -193,3 +204,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -39,3 +39,15 @@ def save_gradient_means(gradients, labels, is_poisoned, save_dir='gradient_means
     # Save the mean gradients to disk
     for group, grads in mean_gradients.items():
         torch.save(grads, os.path.join(save_dir, f'mean_gradients_{group}.pt'))
+
+
+def smooth_labels(labels, num_classes, smoothing=0.1):
+    # Convert labels to one-hot vectors
+    one_hot_labels = torch.zeros(labels.size(0), num_classes).to(labels.device)
+    one_hot_labels.scatter_(1, labels.unsqueeze(-1), 1)
+
+    # Apply label smoothing
+    smooth_labels = one_hot_labels * (1 - smoothing) + smoothing / num_classes
+    return smooth_labels
+
+
