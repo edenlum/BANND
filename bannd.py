@@ -8,7 +8,7 @@ import numpy as np
 import copy
 import numpy as np
 
-from aggregate_gradients import aggregate_gradients, aggregate_gradients_cosine
+from aggregate_gradients import *
 from poison_dataset import *
 from utils import *
 
@@ -100,7 +100,7 @@ def test(model, test_loader):
         print("Accuracy: {}%".format(100*correct/total))
 
 
-def train_defense(model_name, model, train_loader, test_loader_clean, test_loader_poisoned):
+def train_defense(model_name, model, train_loader, test_loader_clean, test_loader_poisoned, epochs=1):
     print("Training the model with a backdoor and a defense...")
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
     # loss_fn = nn.CrossEntropyLoss(reduction='none')
@@ -111,9 +111,9 @@ def train_defense(model_name, model, train_loader, test_loader_clean, test_loade
 
     loss_fn = nn.KLDivLoss(reduction='none')
 
-    for epoch in tqdm.tqdm(range(10)):
+    for epoch in tqdm.tqdm(range(epochs)):
         model.train()
-        for images, labels, is_poisoned in train_loader:
+        for i, (images, labels, is_poisoned) in enumerate(train_loader):
             images, labels = images.to(device), labels.to(device)
             log_outputs = torch.log_softmax(model(images), dim=1)
 
@@ -134,7 +134,7 @@ def train_defense(model_name, model, train_loader, test_loader_clean, test_loade
 
             # save_gradient_means(gradients, labels, is_poisoned)
             # similarity = lambda grads, mean: torch.norm(grads-mean, dim=1)
-            aggregated_gradients = aggregate_gradients_cosine(gradients, labels, is_poisoned, plot=True)
+            aggregated_gradients = aggregate_all_params(gradients, labels, is_poisoned, plot=(i==0))
 
             # Apply the aggregated gradients
             optimizer.zero_grad()
