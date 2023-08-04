@@ -66,26 +66,28 @@ def smooth_labels(labels, num_classes, smoothing=0.1):
     return smooth_labels
 
 
-def plot_through_training(accuracies, attack_success_rates, avg_weight_ratios):
+def plot_through_training(accuracies, attack_success_rates, avg_weight_ratios=None):
     # Plot and save figures
-    plt.figure(figsize=(15, 5))
-    plt.subplot(1, 3, 1)
+    num_plots = 2 if avg_weight_ratios is None else 3
+    plt.figure(figsize=(num_plots*5, 5))
+    plt.subplot(1, num_plots, 1)
     plt.plot(accuracies)
     plt.title('Accuracy')
     plt.xlabel('Batch')
     plt.ylabel('Accuracy')
 
-    plt.subplot(1, 3, 2)
+    plt.subplot(1, num_plots, 2)
     plt.plot(attack_success_rates)
     plt.title('Attack Success Rate')
     plt.xlabel('Batch')
     plt.ylabel('Success Rate')
 
-    plt.subplot(1, 3, 3)
-    plt.plot(avg_weight_ratios)
-    plt.title('Average Weight Ratio')
-    plt.xlabel('Batch')
-    plt.ylabel('Ratio')
+    if avg_weight_ratios is not None:
+        plt.subplot(1, num_plots, 3)
+        plt.plot(avg_weight_ratios.cpu().numpy())
+        plt.title('Average Weight Ratio')
+        plt.xlabel('Batch')
+        plt.ylabel('Ratio')
 
     plt.savefig(f'plots/training_stats.png')
     plt.close()
