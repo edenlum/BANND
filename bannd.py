@@ -57,14 +57,19 @@ class SimpleCNN(nn.Module):
         return x
 
 
-def train_normal(name, model, train_loader):
+def train_normal(name, model, train_loader, test_loader_clean, test_loader_poisoned):
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
     criterion = nn.CrossEntropyLoss()
     model.to(device)
     print("Training the model normally...")
     # Training loop
-    for epoch in tqdm.tqdm(range(10)):
-        for images, labels in train_loader:
+    accuracies = []
+    attack_success_rates = []
+
+    for epoch in range(1):
+        for i, batch in tqdm.tqdm(enumerate(train_loader)):
+            model.train()
+            images, labels = batch[0], batch[1]
             images, labels = images.to(device), labels.to(device)
             # Forward pass
             outputs = model(images)
@@ -75,8 +80,19 @@ def train_normal(name, model, train_loader):
             loss.backward()
             optimizer.step()
 
-    print("Training is complete!")
+            if i %10 == 0:
+                model.eval()
+                with torch.no_grad():
+                    # Compute accuracy on clean test set
+                    accuracy = test(model, test_loader_clean)
+                    accuracies.append(accuracy)
 
+                    # Compute attack success rate on poisoned test set
+                    attack_success_rate = test(model, test_loader_poisoned)
+                    attack_success_rates.append(attack_success_rate)
+
+    print("Training is complete!")
+    plot_through_training("training_stats_no_def", accuracies, attack_success_rates)
 
     # save the model
     print("Saving the model...")
@@ -96,8 +112,9 @@ def test(model, test_loader):
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted==labels).sum().item()
-
-        print("Accuracy: {}%".format(100*correct/total))
+        accuracy = 100*correct/total
+        print("Accuracy: {}%".format(accuracy))
+    return accuracy
 
 
 def train_defense(model_name, model, train_loader, test_loader_clean, test_loader_poisoned, epochs=1):
@@ -115,8 +132,8 @@ def train_defense(model_name, model, train_loader, test_loader_clean, test_loade
     attack_success_rates = []
     avg_weight_ratios = []
 
-    for epoch in tqdm.tqdm(range(epochs)):
-        for i, (images, labels, is_poisoned) in enumerate(train_loader):
+    for epoch in range(epochs):
+        for i, (images, labels, is_poisoned) in enumerate(tqdm.tqdm(train_loader)):
             model.train()
             images, labels = images.to(device), labels.to(device)
             log_outputs = torch.log_softmax(model(images), dim=1)
@@ -139,7 +156,7 @@ def train_defense(model_name, model, train_loader, test_loader_clean, test_loade
             # save_gradient_means(gradients, labels, is_poisoned)
             # similarity = lambda grads, mean: torch.norm(grads-mean, dim=1)
             # aggregated_gradients, avg_weight_poisoned = aggregate_gradients_cosine(gradients, labels, is_poisoned, plot=(i==0)) 
-            aggregated_gradients, avg_weight_poisoned = aggregate_all_params(gradients, labels, is_poisoned, plot=(i==0), save_gradients=True, name_to_save=f"batch_{i}")
+            aggregated_gradients, avg_weight_poisoned = aggregate_all_params(gradients, labels, is_poisoned, plot=(i==0), save_gradients=False, name_to_save=f"batch_{i}")
             avg_weight_ratios.append(avg_weight_poisoned)
 
             # Apply the aggregated gradients
@@ -148,17 +165,19 @@ def train_defense(model_name, model, train_loader, test_loader_clean, test_loade
                 param.grad = aggregated_gradients[name]
             optimizer.step()
             
-            model.eval()
-            # Compute accuracy on clean test set
-            accuracy = test(model, test_loader_clean)
-            accuracies.append(accuracy)
+            if i %10 == 0:
+                model.eval()
+                with torch.no_grad():
+                    # Compute accuracy on clean test set
+                    accuracy = test(model, test_loader_clean)
+                    accuracies.append(accuracy)
 
-            # Compute attack success rate on poisoned test set
-            attack_success_rate = test(model, test_loader_poisoned)
-            attack_success_rates.append(attack_success_rate)
+                    # Compute attack success rate on poisoned test set
+                    attack_success_rate = test(model, test_loader_poisoned)
+                    attack_success_rates.append(attack_success_rate)
 
     print("Training is complete!")
-    plot_through_training(accuracies, attack_success_rates, avg_weight_ratios)
+    plot_through_training("training_stats_with_def", accuracies, attack_success_rates, avg_weight_ratios)
 
     # save the model
     print("Saving the model...")
@@ -187,10 +206,10 @@ def main():
     poisoned_train_loader = DataLoader(PoisonedDataset(train_data, watermark, 0.01), batch_size=256)
     poisoned_test_loader = DataLoader(PoisonedDataset(test_data, watermark, 1.0), batch_size=256)
 
-    # # Train the model with the poisoned dataset
-    # print("Training normally on backdoored dataset")
-    # backdoored_model = SimpleCNN()
-    # train_normal("mnist_cnn_backdoor", model, poisoned_train_loader)
+    # Train the model with the poisoned dataset
+    print("Training normally on backdoored dataset")
+    backdoored_model = SimpleCNN()
+    train_normal("mnist_cnn_backdoor", model, poisoned_train_loader, test_loader, poisoned_test_loader)
     # # model.load_state_dict(torch.load("./data/models/mnist_cnn_backdoor.pth"))
     # print("Testing the model with a backdoor on the clean test set")
     # test(model, test_loader)
@@ -200,12 +219,12 @@ def main():
     print("Training with defense on backdoored dataset")
     defended_model = SimpleCNN()
 
-    train_defense("mnist_cnn_backdoor_defense", defended_model, poisoned_train_loader, test_loader, poisoned_test_loader)
+    # train_defense("mnist_cnn_backdoor_defense", defended_model, poisoned_train_loader, test_loader, poisoned_test_loader)
     # defended_model.load_state_dict(torch.load("./data/models/mnist_cnn_backdoor_defense.pth"))
-    print("Testing the model with a backdoor on the clean test set")
-    test(defended_model, test_loader)
-    print("Testing the model with a backdoor on the poisoned test set")
-    test(defended_model, poisoned_test_loader)
+    # print("Testing the model with a backdoor on the clean test set")
+    # test(defended_model, test_loader)
+    # print("Testing the model with a backdoor on the poisoned test set")
+    # test(defended_model, poisoned_test_loader)
 
 if __name__ == "__main__":
     main()

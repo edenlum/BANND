@@ -66,7 +66,7 @@ def smooth_labels(labels, num_classes, smoothing=0.1):
     return smooth_labels
 
 
-def plot_through_training(accuracies, attack_success_rates, avg_weight_ratios=None):
+def plot_through_training(name, accuracies, attack_success_rates, avg_weight_ratios=None):
     # Plot and save figures
     num_plots = 2 if avg_weight_ratios is None else 3
     plt.figure(figsize=(num_plots*5, 5))
@@ -89,7 +89,7 @@ def plot_through_training(accuracies, attack_success_rates, avg_weight_ratios=No
         plt.xlabel('Batch')
         plt.ylabel('Ratio')
 
-    plt.savefig(f'plots/training_stats.png')
+    plt.savefig(f'plots/{name}.png')
     plt.close()
 
 
