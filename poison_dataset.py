@@ -1,14 +1,16 @@
-import torch
 import copy
+
 import numpy as np
+import torch
 
 
 def white_square_watermark():
-  # Define the watermark (backdoor trigger) and target class
-  watermark = torch.zeros(1, 28, 28)  # A 28x28 black square
-  # add a white square to the right bottom corner
-  watermark[:, 25:27, 25:27] = 1.0
-  return watermark
+    # Define the watermark (backdoor trigger) and target class
+    watermark = torch.zeros(1, 28, 28)  # A 28x28 black square
+    # add a white square to the right bottom corner
+    watermark[:, 25:27, 25:27] = 1.0
+    return watermark
+
 
 def poison_dataset(data, watermark, poison_rate=0.05, target_class=1):
     num_poison = int(len(data) * poison_rate)
@@ -22,9 +24,9 @@ def poison_dataset(data, watermark, poison_rate=0.05, target_class=1):
 
 class PoisonedDataset(torch.utils.data.Dataset):
     def __init__(self, original_dataset, watermark, poison_rate, return_indices=True):
-        self.poisoned_data, self.poison_indices = poison_dataset(original_dataset,
-                                                                 watermark=watermark,
-                                                                 poison_rate=poison_rate)
+        self.poisoned_data, self.poison_indices = poison_dataset(
+            original_dataset, watermark=watermark, poison_rate=poison_rate
+        )
         self.return_indices = return_indices
 
     def __getitem__(self, index):

@@ -1,24 +1,29 @@
-import os
-import torch
-from matplotlib import pyplot as plt
 import gzip
+import os
 import pickle
 
+import torch
+from matplotlib import pyplot as plt
 
-def save_gradients_labels_poisoned(name, gradients, labels, is_poisoned, save_dir='gradients'):
+
+def save_gradients_labels_poisoned(
+    name, gradients, labels, is_poisoned, save_dir="gradients"
+):
     os.makedirs(save_dir, exist_ok=True)
-    with gzip.open(os.path.join(save_dir, f'{name}.pkl.gz'), 'wb') as f:
+    with gzip.open(os.path.join(save_dir, f"{name}.pkl.gz"), "wb") as f:
         pickle.dump((gradients, labels, is_poisoned), f)
 
 
-def load_gradients_labels_poisoned(name, save_dir='gradients'):
-    with gzip.open(os.path.join(save_dir, f'{name}.pkl.gz'), 'rb') as f:
+def load_gradients_labels_poisoned(name, save_dir="gradients"):
+    with gzip.open(os.path.join(save_dir, f"{name}.pkl.gz"), "rb") as f:
         gradients, labels, is_poisoned = pickle.load(f)
     return gradients, labels, is_poisoned
 
-      
-def save_gradient_means(gradients, labels, is_poisoned, save_dir='gradient_means'):
-    gradients = {name: [sample[name] for sample in gradients] for name in gradients[0].keys()}
+
+def save_gradient_means(gradients, labels, is_poisoned, save_dir="gradient_means"):
+    gradients = {
+        name: [sample[name] for sample in gradients] for name in gradients[0].keys()
+    }
 
     # Get the unique labels (classes)
     unique_labels = torch.unique(labels)
@@ -31,16 +36,16 @@ def save_gradient_means(gradients, labels, is_poisoned, save_dir='gradient_means
 
     # Initialize a dictionary to hold the mean gradients for each group
     mean_gradients = {label.item(): {} for label in unique_labels}
-    mean_gradients['poisoned'] = {}
+    mean_gradients["poisoned"] = {}
 
     # Divide the gradients into groups and compute the mean for each group
     for name, grad_list in gradients.items():
         # Divide the gradients into groups
         grad_groups = {label.item(): [] for label in unique_labels}
-        grad_groups['poisoned'] = []
+        grad_groups["poisoned"] = []
         for grad, label, poisoned in zip(grad_list, labels, is_poisoned):
             if poisoned:
-                grad_groups['poisoned'].append(grad)
+                grad_groups["poisoned"].append(grad)
             else:
                 grad_groups[label.item()].append(grad)
 
@@ -53,7 +58,7 @@ def save_gradient_means(gradients, labels, is_poisoned, save_dir='gradient_means
 
     # Save the mean gradients to disk
     for group, grads in mean_gradients.items():
-        torch.save(grads, os.path.join(save_dir, f'mean_gradients_{group}.pt'))
+        torch.save(grads, os.path.join(save_dir, f"mean_gradients_{group}.pt"))
 
 
 def smooth_labels(labels, num_classes, smoothing=0.1):
@@ -66,30 +71,30 @@ def smooth_labels(labels, num_classes, smoothing=0.1):
     return smooth_labels
 
 
-def plot_through_training(name, accuracies, attack_success_rates, avg_weight_ratios=None):
+def plot_through_training(
+    name, accuracies, attack_success_rates, avg_weight_ratios=None
+):
     # Plot and save figures
     num_plots = 2 if avg_weight_ratios is None else 3
-    plt.figure(figsize=(num_plots*5, 5))
+    plt.figure(figsize=(num_plots * 5, 5))
     plt.subplot(1, num_plots, 1)
     plt.plot(accuracies)
-    plt.title('Accuracy')
-    plt.xlabel('Batch')
-    plt.ylabel('Accuracy')
+    plt.title("Accuracy")
+    plt.xlabel("Batch")
+    plt.ylabel("Accuracy")
 
     plt.subplot(1, num_plots, 2)
     plt.plot(attack_success_rates)
-    plt.title('Attack Success Rate')
-    plt.xlabel('Batch')
-    plt.ylabel('Success Rate')
+    plt.title("Attack Success Rate")
+    plt.xlabel("Batch")
+    plt.ylabel("Success Rate")
 
     if avg_weight_ratios is not None:
         plt.subplot(1, num_plots, 3)
         plt.plot(avg_weight_ratios.cpu().numpy())
-        plt.title('Average Weight Ratio')
-        plt.xlabel('Batch')
-        plt.ylabel('Ratio')
+        plt.title("Average Weight Ratio")
+        plt.xlabel("Batch")
+        plt.ylabel("Ratio")
 
-    plt.savefig(f'plots/{name}.png')
+    plt.savefig(f"plots/{name}.png")
     plt.close()
-
-
