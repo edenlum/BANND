@@ -1,4 +1,5 @@
 import copy
+import random
 
 import numpy as np
 import torch
@@ -8,9 +9,14 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
+import settings
 from aggregate_gradients import *
 from poison_dataset import *
 from utils import *
+
+torch.manual_seed(settings.SEED)
+random.seed(settings.SEED)
+np.random.seed(settings.SEED)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
