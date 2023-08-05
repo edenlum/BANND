@@ -71,23 +71,29 @@ def smooth_labels(labels, num_classes, smoothing=0.1):
     return smooth_labels
 
 
-def plot_through_training(
-    name, accuracies, attack_success_rates, avg_weight_ratios=None
+def save_stats_plots(
+    file_name, accuracies, attack_success_rates, avg_weight_ratios=None
 ):
-    # Plot and save figures
     num_plots = 2 if avg_weight_ratios is None else 3
+
     plt.figure(figsize=(num_plots * 5, 5))
+    plt.suptitle(file_name)
+
     plt.subplot(1, num_plots, 1)
     plt.plot(accuracies)
     plt.title("Accuracy")
     plt.xlabel("Batch")
     plt.ylabel("Accuracy")
+    plt.ylim(0, 100)
+    plt.yticks(list(range(0, 101, 5)))
 
     plt.subplot(1, num_plots, 2)
     plt.plot(attack_success_rates)
     plt.title("Attack Success Rate")
     plt.xlabel("Batch")
     plt.ylabel("Success Rate")
+    plt.ylim(0, 100)
+    plt.yticks(list(range(0, 101, 5)))
 
     if avg_weight_ratios is not None:
         plt.subplot(1, num_plots, 3)
@@ -96,5 +102,14 @@ def plot_through_training(
         plt.xlabel("Batch")
         plt.ylabel("Ratio")
 
-    plt.savefig(f"plots/{name}.png")
+    path = f"plots/{file_name}.png"
+    print(f"saving stats (model accuracies and attack success rates) to {path}")
+    plt.savefig(path)
+
     plt.close()
+
+
+def save_model(model, file_name):
+    path = f"data/models/{file_name}.pth"
+    print(f"saving model to {path}")
+    torch.save(model.state_dict(), path)
