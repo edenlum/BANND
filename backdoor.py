@@ -37,7 +37,7 @@ def gen_poisoned_samples(
         backdoored_data = []
 
     for idx in indices_to_poison:
-        backdoored_image = torch.clip(dataset.data[idx] + backdoor, 0, 1)
+        backdoored_image = torch.clip(dataset.data[idx] + backdoor, 0, 255)
 
         if attack_type == "all_to_target":
             backdoored_class = target_class
