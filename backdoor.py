@@ -19,7 +19,7 @@ def gen_poisoned_samples(
     attack_type: Literal["source_to_target", "all_to_target", "all_to_all_plus_one"],
     source_class: Optional[int] = None,
     target_class: Optional[int] = None,
-    inplace: bool = False,
+    inplace_or_merge: Literal["inplace", "merge", "only_poisoned"] = "merge",
 ):
     assert 0 < poisoning_rate <= 1
 
@@ -31,7 +31,7 @@ def gen_poisoned_samples(
         replace=False,
     )
 
-    if inplace:
+    if inplace_or_merge == "inplace":
         poisoned_data = copy.deepcopy(dataset)
     else:
         backdoored_data = []
@@ -45,16 +45,18 @@ def gen_poisoned_samples(
             # TODO:
             raise NotImplementedError()
 
-        if inplace:
+        if inplace_or_merge == "inplace":
             poisoned_data.data[idx] = backdoored_image
             poisoned_data.targets[idx] = backdoored_class
         else:
             backdoored_data.append((backdoored_image, backdoored_class))
 
-    if inplace:
+    if inplace_or_merge == "inplace":
         return poisoned_data
-    else:
+    elif inplace_or_merge == "merge":
         return torch.utils.data.dataset.ConcatDataset([dataset, backdoored_data])
+    else:
+        return backdoored_data
 
 
 # class PoisonedDataset(torch.utils.data.Dataset):
