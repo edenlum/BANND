@@ -1,4 +1,3 @@
-import copy
 import random
 
 import numpy as np
@@ -129,16 +128,12 @@ def get_data_loaders():
 
     # add a small p% of poisoned samples to the train data
     train_loader_poisoned = DataLoader(
-        torch.utils.data.dataset.ConcatDataset(
-            [
-                train_data,
-                gen_poisoned_samples(
-                    train_data,
-                    settings.POISON_RATE,
-                    "all_to_target",
-                    target_class=settings.TARGET_CLASS,
-                ),
-            ]
+        gen_poisoned_samples(
+            train_data,
+            settings.POISON_RATE,
+            "all_to_target",
+            target_class=settings.TARGET_CLASS,
+            inplace=False,
         ),
         batch_size=settings.BATCH_SIZE,
         shuffle=True,
@@ -230,5 +225,5 @@ def main(run_type):
 
 
 if __name__ == "__main__":
-    main("baseline")
-    # main("attack")
+    # main("baseline")
+    main("attack")

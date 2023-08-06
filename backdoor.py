@@ -1,3 +1,4 @@
+import copy
 from typing import Literal, Optional
 
 import numpy as np
@@ -18,6 +19,7 @@ def gen_poisoned_samples(
     attack_type: Literal["source_to_target", "all_to_target", "all_to_all_plus_one"],
     source_class: Optional[int] = None,
     target_class: Optional[int] = None,
+    inplace: bool = False,
 ):
     assert 0 < poisoning_rate <= 1
 
@@ -29,7 +31,10 @@ def gen_poisoned_samples(
         replace=False,
     )
 
-    backdoored_data = []
+    if inplace:
+        poisoned_data = copy.deepcopy(dataset)
+    else:
+        backdoored_data = []
 
     for idx in indices_to_poison:
         backdoored_image = torch.clip(dataset.data[idx] + backdoor, 0, 1)
@@ -40,9 +45,16 @@ def gen_poisoned_samples(
             # TODO:
             raise NotImplementedError()
 
-        backdoored_data.append((backdoored_image, backdoored_class))
+        if inplace:
+            poisoned_data.data[idx] = backdoored_image
+            poisoned_data.targets[idx] = backdoored_class
+        else:
+            backdoored_data.append((backdoored_image, backdoored_class))
 
-    return backdoored_data
+    if inplace:
+        return poisoned_data
+    else:
+        return torch.utils.data.dataset.ConcatDataset([dataset, backdoored_data])
 
 
 # class PoisonedDataset(torch.utils.data.Dataset):
