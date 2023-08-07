@@ -9,7 +9,7 @@ def white_square_watermark():
     # Define the watermark (backdoor trigger) and target class
     watermark = torch.zeros(1, 28, 28)  # A 28x28 black square
     # add a white square to the right bottom corner
-    watermark[:, 25:27, 25:27] = 1.0
+    watermark[:, 25:27, 25:27] = 1
     return watermark
 
 
@@ -37,7 +37,7 @@ def gen_poisoned_samples(
         backdoored_data = []
 
     for idx in indices_to_poison:
-        backdoored_image = torch.clip(dataset.data[idx] + backdoor, 0, 255)
+        backdoored_image = torch.clip(dataset[idx][0] + backdoor, 0, 1)
 
         if attack_type == "all_to_target":
             backdoored_class = target_class
