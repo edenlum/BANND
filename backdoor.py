@@ -23,6 +23,10 @@ def gen_poisoned_samples(
 ):
     assert 0 < poisoning_rate <= 1
 
+    print(
+        f"generating {int(len(dataset) * poisoning_rate)} poisoned samples from dataset of size {len(dataset)}, rate={poisoning_rate}, type={attack_type}, mode={inplace_or_merge}"
+    )
+
     backdoor = white_square_watermark()
 
     indices_to_poison = np.random.choice(
