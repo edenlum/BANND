@@ -109,33 +109,36 @@ def train_defense(
     print(f"Model saved to ./data/models/{model_name}.pth")
 
 
-def get_data_loaders():
-    # Load the MNIST dataset
+def get_data_loaders(
+    dataset: datasets.VisionDataset
+):
+    # Load the dataset
     transform = transforms.Compose([transforms.ToTensor()])
-    train_data = datasets.MNIST(
+
+    train_data = dataset(
         root="data", train=True, download=True, transform=transform
     )
-    test_data = datasets.MNIST(
+    test_data = dataset(
         root="data", train=False, download=True, transform=transform
     )
 
     train_loader_clean = DataLoader(
-        train_data, batch_size=settings.BATCH_SIZE, shuffle=True
+        train_data, batch_size=256, shuffle=True
     )
     test_loader_clean = DataLoader(
-        test_data, batch_size=settings.BATCH_SIZE, shuffle=True
+        test_data, batch_size=256, shuffle=True
     )
 
     # add a small p% of poisoned samples to the train data
     train_loader_poisoned = DataLoader(
         gen_poisoned_samples(
             train_data,
-            settings.POISON_RATE,
+            0.01,
             "all_to_target",
-            target_class=settings.TARGET_CLASS,
-            inplace_or_merge="inplace",
+            target_class=1,
+            inplace_or_merge="merge",
         ),
-        batch_size=settings.BATCH_SIZE,
+        batch_size=256,
         shuffle=True,
     )
     # poison all samples to test the attacks success rate
@@ -144,10 +147,10 @@ def get_data_loaders():
             test_data,
             1.0,
             "all_to_target",
-            target_class=settings.TARGET_CLASS,
+            target_class=1,
             inplace_or_merge="inplace",
         ),
-        batch_size=settings.BATCH_SIZE,
+        batch_size=256,
         shuffle=True,
     )
 
@@ -165,7 +168,7 @@ def main(run_type):
         train_loader_poisoned,
         test_loader_clean,
         test_loader_poisoned,
-    ) = get_data_loaders()
+    ) = get_data_loaders(datasets.MNIST)
 
     # Initialize the network
     model = SimpleConvNet()
