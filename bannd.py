@@ -7,6 +7,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from tqdm import tqdm
+import argparse
 
 import settings
 from aggregate_gradients import *
@@ -78,13 +79,33 @@ def get_data_loaders(
     )
 
 
-def main(run_type, **):
+def main():
+    parser = argparse.ArgumentParser(description="Train and evaluate a neural network.")
+    parser.add_argument('--runtype', choices=["baseline", "attack", "defend"], help='Type of run')
+    parser.add_argument('--dataset', choices=["MNIST", "CIFAR10"], help='Dataset to use')
+    parser.add_argument('--inplace_or_merge', choices=["inplace", "merge"], help='Inplace or merge operation')
+    parser.add_argument('--batch_size', type=int, default=settings.BATCH_SIZE, help='Batch size for training')
+    parser.add_argument('--poison_rate', type=float, default=settings.POISON_RATE, help='Rate of poisoned samples in the dataset')
+    parser.add_argument('--save_name', type=str, default=None, help='Save name for statistics')
+
+    args = parser.parse_args()
+    
+    if args.save_name is None:
+        args.save_name = f"stats_{args.runtype}_accuracy_and_attack_success_rate"
+
+    if args.dataset == "MNIST":
+        dataset = datasets.MNIST
+    elif args.dataset == "CIFAR10":
+        dataset = datasets.CIFAR10
+    else:
+        raise NotImplementedError()
+      
     (
         train_loader_clean,
         train_loader_poisoned,
         test_loader_clean,
         test_loader_poisoned,
-    ) = get_data_loaders(datasets.MNIST)
+    ) = get_data_loaders(dataset, args.inplace_or_merge, args.batch_size, args.poison_rate)
 
     # Initialize the network
     model = SimpleConvNet()
@@ -102,7 +123,7 @@ def main(run_type, **):
             should_save_model=True,
             model_file_name="cnn_baseline",
             should_save_stats=True,
-            stats_file_name="stats_baseline_accuracy_and_attack_success_rate",
+            stats_file_name=args.save_name,
             test_loader_clean=test_loader_clean,
             test_loader_poisoned=test_loader_poisoned,
             calc_states_every_nth_iter=10,
@@ -119,7 +140,7 @@ def main(run_type, **):
             should_save_model=True,
             model_file_name="cnn_after_attack",
             should_save_stats=True,
-            stats_file_name="stats_attack_accuracy_and_success",
+            stats_file_name=args.save_name,
             test_loader_clean=test_loader_clean,
             test_loader_poisoned=test_loader_poisoned,
             calc_states_every_nth_iter=10,
@@ -146,4 +167,4 @@ def main(run_type, **):
 
 if __name__ == "__main__":
     # main("baseline")
-    main("attack")
+    main()
