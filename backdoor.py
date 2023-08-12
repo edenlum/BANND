@@ -7,9 +7,9 @@ import torch
 
 def white_square_watermark():
     # Define the watermark (backdoor trigger) and target class
-    watermark = torch.zeros(1, 28, 28)  # A 28x28 black square
+    watermark = torch.zeros(1, 28, 28, dtype=torch.uint8)  # A 28x28 black square
     # add a white square to the right bottom corner
-    watermark[:, 25:27, 25:27] = 1
+    watermark[:, 25:27, 25:27] = 255
     return watermark
 
 
@@ -22,50 +22,47 @@ def gen_poisoned_samples(
     inplace_or_merge: Literal["inplace", "merge", "only_poisoned"] = "merge",
 ):
     assert 0 < poisoning_rate <= 1
-    assert (
-        inplace_or_merge == "inplace"
-    ), "only `inplace` mode is supported for now, other modes are buggy"
+    # assert (
+    #     inplace_or_merge == "inplace"
+    # ), "only `inplace` mode is supported for now, other modes are buggy"
 
+    num_poison = int(len(dataset) * poisoning_rate)
     print(
-        f"generating {int(len(dataset) * poisoning_rate)} poisoned samples from dataset of size {len(dataset)}, rate={poisoning_rate}, type={attack_type}, mode={inplace_or_merge}"
+        f"generating {num_poison} poisoned samples from dataset of size {len(dataset)}, rate={poisoning_rate}, type={attack_type}, mode={inplace_or_merge}"
     )
 
     backdoor = white_square_watermark()
 
     indices_to_poison = np.random.choice(
         len(dataset),
-        size=int(len(dataset) * poisoning_rate),
+        size=num_poison,
         replace=False,
     )
 
-    if inplace_or_merge == "inplace":
-        poisoned_data = copy.deepcopy(dataset)
+    poisoned_data = copy.deepcopy(dataset)
+
+    backdoored_images = torch.clip(dataset.data[indices_to_poison] + backdoor, 0, 255)
+    
+    if attack_type == "all_to_target":
+        backdoored_classes = torch.full(size=(num_poison,), fill_value=target_class)
     else:
-        backdoored_data = []
-
-    for idx in indices_to_poison:
-        backdoored_image = torch.clip(dataset[idx][0] + backdoor, 0, 1)
-
-        if attack_type == "all_to_target":
-            backdoored_class = target_class
-        else:
-            # TODO:
-            raise NotImplementedError()
-
-        if inplace_or_merge == "inplace":
-            poisoned_data.data[idx] = backdoored_image
-            poisoned_data.targets[idx] = backdoored_class
-        else:
-            backdoored_data.append((backdoored_image, backdoored_class))
+        # TODO:
+        raise NotImplementedError()
 
     if inplace_or_merge == "inplace":
-        return poisoned_data
+        poisoned_data.data[indices_to_poison] = backdoored_images
+        poisoned_data.targets[indices_to_poison] = backdoored_classes
     elif inplace_or_merge == "merge":
-        return torch.utils.data.dataset.ConcatDataset([dataset, backdoored_data])
+        poisoned_data.data = \
+              torch.concat((poisoned_data.data, backdoored_images), dim=0)
+        poisoned_data.targets = \
+              torch.concat((poisoned_data.targets, backdoored_classes), dim=0)
     else:
-        return backdoored_data
+        raise NotImplementedError()
 
+    return poisoned_data
 
+        
 # class PoisonedDataset(torch.utils.data.Dataset):
 #     def __init__(self, original_dataset, poison_rate, return_indices=True):
 #         self.poisoned_data, self.poison_indices = poison_dataset(
