@@ -44,6 +44,7 @@ def train(
     test_loader_clean=None,
     test_loader_poisoned=None,
     calc_states_every_nth_iter=10,
+    epochs=1
 ):
     print("training model...")
 
@@ -52,7 +53,7 @@ def train(
     accuracies = []
     attack_success_rates = []
 
-    for _ in tqdm(range(settings.TRAINING_EPOCHS), desc="epoch"):
+    for _ in tqdm(range(epochs), desc="epoch"):
         for i, batch in enumerate(tqdm(train_loader, desc="batch")):
             images, labels = batch[0], batch[1]
             images, labels = images.to(device), labels.to(device)

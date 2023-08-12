@@ -87,6 +87,8 @@ def main():
     parser.add_argument('--batch_size', type=int, default=settings.BATCH_SIZE, help='Batch size for training')
     parser.add_argument('--poison_rate', type=float, default=settings.POISON_RATE, help='Rate of poisoned samples in the dataset')
     parser.add_argument('--save_name', type=str, default=None, help='Save name for statistics')
+    parser.add_argument('--epochs', type=int, default=settings.TRAINING_EPOCHS, help='Number of epochs to run training')
+    parser.add_argument('--calc_every_n_iter', type=int, default=10, help='Save stats every given number of batches')
 
     args = parser.parse_args()
     
@@ -115,58 +117,29 @@ def main():
     criterion = nn.CrossEntropyLoss()
 
     if args.runtype == "baseline":
+        train_loader = train_loader_clean
         print("training model on clean dataset, establishing model's baseline")
-        train(
-            device,
-            model,
-            optimizer,
-            criterion,
-            train_loader_clean,
-            should_save_model=True,
-            model_file_name="cnn_baseline",
-            should_save_stats=True,
-            stats_file_name=args.save_name,
-            test_loader_clean=test_loader_clean,
-            test_loader_poisoned=test_loader_poisoned,
-            calc_states_every_nth_iter=10,
-        )
-
     elif args.runtype == "attack":
+        train_loader = train_loader_poisoned
         print("training model on poisoned dataset, establishing attack's baseline")
-        train(
-            device,
-            model,
-            optimizer,
-            criterion,
-            train_loader_poisoned,
-            should_save_model=True,
-            model_file_name="cnn_after_attack",
-            should_save_stats=True,
-            stats_file_name=args.save_name,
-            test_loader_clean=test_loader_clean,
-            test_loader_poisoned=test_loader_poisoned,
-            calc_states_every_nth_iter=10,
-        )
-
     elif args.runtype == "defend":
         raise NotImplementedError()
-    # # model.load_state_dict(torch.load("./data/models/mnist_cnn_backdoor.pth"))
-    # print("Testing the model with a backdoor on the clean test set")
-    # calc_accuracy(model, test_loader)
-    # print("Testing the model with a backdoor on the poisoned test set")
-    # calc_accuracy(model, poisoned_test_loader)
-
-    # print("Training with defense on backdoored dataset")
-    # defended_model = SimpleConvNet()
-
-    # train_defense("mnist_cnn_backdoor_defense", defended_model, poisoned_train_loader, test_loader, poisoned_test_loader)
-    # defended_model.load_state_dict(torch.load("./data/models/mnist_cnn_backdoor_defense.pth"))
-    # print("Testing the model with a backdoor on the clean test set")
-    # calc_accuracy(defended_model, test_loader)
-    # print("Testing the model with a backdoor on the poisoned test set")
-    # calc_accuracy(defended_model, poisoned_test_loader)
+    train(
+        device,
+        model,
+        optimizer,
+        criterion,
+        train_loader,
+        should_save_model=True,
+        model_file_name="cnn_baseline",
+        should_save_stats=True,
+        stats_file_name=args.save_name,
+        test_loader_clean=test_loader_clean,
+        test_loader_poisoned=test_loader_poisoned,
+        calc_states_every_nth_iter=args.calc_every_n_iter,
+        epochs=args.epochs
+    )
 
 
 if __name__ == "__main__":
-    # main("baseline")
     main()
