@@ -82,8 +82,8 @@ def get_data_loaders(
 def main():
     parser = argparse.ArgumentParser(description="Train and evaluate a neural network.")
     parser.add_argument('--runtype', choices=["baseline", "attack", "defend"], help='Type of run')
-    parser.add_argument('--dataset', choices=["MNIST", "CIFAR10"], help='Dataset to use')
-    parser.add_argument('--inplace_or_merge', choices=["inplace", "merge"], help='Inplace or merge operation')
+    parser.add_argument('--dataset', choices=["MNIST", "CIFAR10"], default="MNIST", help='Dataset to use')
+    parser.add_argument('--inplace_or_merge', choices=["inplace", "merge"], default="merge", help='Inplace or merge operation')
     parser.add_argument('--batch_size', type=int, default=settings.BATCH_SIZE, help='Batch size for training')
     parser.add_argument('--poison_rate', type=float, default=settings.POISON_RATE, help='Rate of poisoned samples in the dataset')
     parser.add_argument('--save_name', type=str, default=None, help='Save name for statistics')
@@ -99,6 +99,8 @@ def main():
         dataset = datasets.CIFAR10
     else:
         raise NotImplementedError()
+
+    print(args)
       
     (
         train_loader_clean,
@@ -112,7 +114,7 @@ def main():
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
     criterion = nn.CrossEntropyLoss()
 
-    if run_type == "baseline":
+    if args.runtype == "baseline":
         print("training model on clean dataset, establishing model's baseline")
         train(
             device,
@@ -129,7 +131,7 @@ def main():
             calc_states_every_nth_iter=10,
         )
 
-    elif run_type == "attack":
+    elif args.runtype == "attack":
         print("training model on poisoned dataset, establishing attack's baseline")
         train(
             device,
@@ -146,7 +148,7 @@ def main():
             calc_states_every_nth_iter=10,
         )
 
-    elif run_type == "defend":
+    elif args.runtype == "defend":
         raise NotImplementedError()
     # # model.load_state_dict(torch.load("./data/models/mnist_cnn_backdoor.pth"))
     # print("Testing the model with a backdoor on the clean test set")
