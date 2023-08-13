@@ -113,8 +113,6 @@ def main():
 
     # Initialize the network
     model = SimpleConvNet()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-    criterion = nn.CrossEntropyLoss()
 
     if args.runtype == "baseline":
         train_loader = train_loader_clean
@@ -127,8 +125,6 @@ def main():
     train(
         device,
         model,
-        optimizer,
-        criterion,
         train_loader,
         should_save_model=True,
         model_file_name="cnn_baseline",

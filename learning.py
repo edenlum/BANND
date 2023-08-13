@@ -1,4 +1,5 @@
 import torch
+from torch import nn
 from tqdm import tqdm
 
 import settings
@@ -35,8 +36,6 @@ def calc_accuracy(device, model, data_loader):
 def train(
     device,
     model,
-    optimizer,
-    criterion,
     train_loader,
     should_save_model=False,
     model_file_name=None,
@@ -51,6 +50,9 @@ def train(
     print("training model...")
 
     model.to(device)
+    
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+    criterion = nn.CrossEntropyLoss(**({'reduction': 'none'} if defense else {}))
 
     accuracies = []
     attack_success_rates = []
@@ -63,12 +65,10 @@ def train(
             # Forward pass
             model.train()
             outputs = model(images)
+            loss = criterion(outputs, labels)
             if defend:
-                losses = criterion(outputs, labels, reduction='none')
-                defense(losses, optimizer, model, labels)
+                defense(loss, optimizer, model, labels)
             else:
-                loss = criterion(outputs, labels)
-
                 # Backward pass and optimization
                 optimizer.zero_grad()
                 loss.backward()
@@ -94,7 +94,7 @@ def train(
 
 
 def defense(
-    losses, optimizer, model, labels, is_poisoned=None,
+    losses, optimizer, model, labels, is_poisoned=None, batch_idx=1
 ):
     # Initialize a list to hold the gradients for each sample
     gradients = []
@@ -121,7 +121,7 @@ def defense(
         is_poisoned,
         plot=False,
         save_gradients=False,
-        name_to_save=f"batch_{i}",
+        name_to_save=f"batch_{batch_idx}",
     )
 
     # Apply the aggregated gradients
