@@ -3,6 +3,7 @@ from tqdm import tqdm
 
 import settings
 from utils import save_model, save_stats_plots
+from aggregate_gradients import aggregate_all_params
 
 
 def calc_accuracy(device, model, data_loader):
@@ -44,7 +45,8 @@ def train(
     test_loader_clean=None,
     test_loader_poisoned=None,
     calc_states_every_nth_iter=10,
-    epochs=1
+    epochs=1,
+    defend=False
 ):
     print("training model...")
 
@@ -61,12 +63,16 @@ def train(
             # Forward pass
             model.train()
             outputs = model(images)
-            loss = criterion(outputs, labels)
+            if defend:
+                losses = criterion(outputs, labels, reduction='none')
+                defense(losses, optimizer, model, labels)
+            else:
+                loss = criterion(outputs, labels)
 
-            # Backward pass and optimization
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+                # Backward pass and optimization
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
             if should_save_stats and i % calc_states_every_nth_iter == 0:
                 # compute accuracy on clean test dataset
@@ -87,92 +93,39 @@ def train(
         save_model(model, model_file_name)
 
 
-
-
-
-
-def train_defense(
-    model_name, model, train_loader, test_loader_clean, test_loader_poisoned, epochs=1
+def defense(
+    losses, optimizer, model, labels, is_poisoned=None,
 ):
-    print("Training the model with a backdoor and a defense...")
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-    # loss_fn = nn.CrossEntropyLoss(reduction='none')
-    model.to(device)
+    # Initialize a list to hold the gradients for each sample
+    gradients = []
 
-    num_classes = 10  # Number of classes in your dataset
-    smoothing = 0.1  # Label smoothing factor
+    # Backward pass for each sample
+    for loss in losses:
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward(retain_graph=True)
 
-    loss_fn = nn.KLDivLoss(reduction="none")
+        # Save the gradients for each sample
+        gradients.append(
+            {
+                name: param.grad.clone()
+                for name, param in model.named_parameters()
+            }
+        )
 
-    accuracies = []
-    attack_success_rates = []
-    avg_weight_ratios = []
-
-    for epoch in range(epochs):
-        for i, (images, labels, is_poisoned) in enumerate(tqdm(train_loader)):
-            model.train()
-            images, labels = images.to(device), labels.to(device)
-            log_outputs = torch.log_softmax(model(images), dim=1)
-
-            # Apply label smoothing to the target labels
-            smoothed_labels = smooth_labels(labels, num_classes, smoothing).to(device)
-            # Compute the loss using the smoothed labels
-            losses = loss_fn(log_outputs, smoothed_labels).sum(dim=1)
-            # Initialize a list to hold the gradients for each sample
-            gradients = []
-
-            # Backward pass for each sample
-            for loss in losses:
-                optimizer.zero_grad(set_to_none=True)
-                loss.backward(retain_graph=True)
-
-                # Save the gradients for each sample
-                gradients.append(
-                    {
-                        name: param.grad.clone()
-                        for name, param in model.named_parameters()
-                    }
-                )
-
-            # save_gradient_means(gradients, labels, is_poisoned)
-            # similarity = lambda grads, mean: torch.norm(grads-mean, dim=1)
-            # aggregated_gradients, avg_weight_poisoned = aggregate_gradients_cosine(gradients, labels, is_poisoned, plot=(i==0))
-            aggregated_gradients, avg_weight_poisoned = aggregate_all_params(
-                gradients,
-                labels,
-                is_poisoned,
-                plot=(i == 0),
-                save_gradients=False,
-                name_to_save=f"batch_{i}",
-            )
-            avg_weight_ratios.append(avg_weight_poisoned)
-
-            # Apply the aggregated gradients
-            optimizer.zero_grad()
-            for name, param in model.named_parameters():
-                param.grad = aggregated_gradients[name]
-            optimizer.step()
-
-            if i % 10 == 0:
-                model.eval()
-                with torch.no_grad():
-                    # Compute accuracy on clean test set
-                    accuracy = calc_accuracy(device, model, test_loader_clean)
-                    accuracies.append(accuracy)
-
-                    # Compute attack success rate on poisoned test set
-                    attack_success_rate = calc_accuracy(
-                        device, model, test_loader_poisoned
-                    )
-                    attack_success_rates.append(attack_success_rate)
-
-    print("Training is complete!")
-    save_stats_plots(
-        "training_stats_with_def", accuracies, attack_success_rates, avg_weight_ratios
+    # save_gradient_means(gradients, labels, is_poisoned)
+    # similarity = lambda grads, mean: torch.norm(grads-mean, dim=1)
+    # aggregated_gradients, avg_weight_poisoned = aggregate_gradients_cosine(gradients, labels, is_poisoned, plot=(i==0))
+    aggregated_gradients, avg_weight_poisoned = aggregate_all_params(
+        gradients,
+        labels,
+        is_poisoned,
+        plot=False,
+        save_gradients=False,
+        name_to_save=f"batch_{i}",
     )
 
-    # save the model
-    print("Saving the model...")
-    torch.save(model.state_dict(), f"./data/models/{model_name}.pth")
-    print(f"Model saved to ./data/models/{model_name}.pth")
-
+    # Apply the aggregated gradients
+    optimizer.zero_grad()
+    for name, param in model.named_parameters():
+        param.grad = aggregated_gradients[name]
+    optimizer.step()
