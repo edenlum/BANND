@@ -22,10 +22,6 @@ def gen_poisoned_samples(
     inplace_or_merge: Literal["inplace", "merge", "only_poisoned"] = "merge",
 ):
     assert 0 < poisoning_rate <= 1
-    # assert (
-    #     inplace_or_merge == "inplace"
-    # ), "only `inplace` mode is supported for now, other modes are buggy"
-
     num_poison = int(len(dataset) * poisoning_rate)
     print(
         f"generating {num_poison} poisoned samples from dataset of size {len(dataset)}, rate={poisoning_rate}, type={attack_type}, mode={inplace_or_merge}"
@@ -40,7 +36,6 @@ def gen_poisoned_samples(
     )
 
     poisoned_data = copy.deepcopy(dataset)
-
     backdoored_images = torch.clip(dataset.data[indices_to_poison] + backdoor, 0, 255)
     
     if attack_type == "all_to_target":
