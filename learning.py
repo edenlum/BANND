@@ -52,7 +52,7 @@ def train(
     model.to(device)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-    criterion = nn.CrossEntropyLoss(**({"reduction": "none"} if defense else {}))
+    criterion = nn.CrossEntropyLoss(**({"reduction": "none"} if defend else {}))
 
     accuracies = []
     attack_success_rates = []
