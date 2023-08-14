@@ -3,8 +3,8 @@ from torch import nn
 from tqdm import tqdm
 
 import settings
-from utils import save_model, save_stats_plots
 from aggregate_gradients import aggregate_all_params
+from utils import save_model, save_stats_plots
 
 
 def calc_accuracy(device, model, data_loader):
@@ -45,14 +45,14 @@ def train(
     test_loader_poisoned=None,
     calc_states_every_nth_iter=10,
     epochs=1,
-    defend=False
+    defend=False,
 ):
     print("training model...")
 
     model.to(device)
-    
+
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-    criterion = nn.CrossEntropyLoss(**({'reduction': 'none'} if defense else {}))
+    criterion = nn.CrossEntropyLoss(**({"reduction": "none"} if defense else {}))
 
     accuracies = []
     attack_success_rates = []
@@ -93,9 +93,7 @@ def train(
         save_model(model, model_file_name)
 
 
-def defense(
-    losses, optimizer, model, labels, is_poisoned=None, batch_idx=1
-):
+def defense(losses, optimizer, model, labels, is_poisoned=None, batch_idx=1):
     # Initialize a list to hold the gradients for each sample
     gradients = []
 
@@ -106,10 +104,7 @@ def defense(
 
         # Save the gradients for each sample
         gradients.append(
-            {
-                name: param.grad.clone()
-                for name, param in model.named_parameters()
-            }
+            {name: param.grad.clone() for name, param in model.named_parameters()}
         )
 
     # save_gradient_means(gradients, labels, is_poisoned)
