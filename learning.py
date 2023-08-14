@@ -66,6 +66,7 @@ def train(
             model.train()
             outputs = model(images)
             loss = criterion(outputs, labels)
+
             if defend:
                 defense(loss, optimizer, model, labels)
             else:

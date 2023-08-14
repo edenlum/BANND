@@ -79,42 +79,50 @@ def main():
         "--dataset",
         choices=["MNIST", "CIFAR10"],
         default="MNIST",
-        help="Dataset to use",
+        help="Dataset to use (default: %(default)s)",
     )
     parser.add_argument(
         "--inplace_or_merge",
         choices=["inplace", "merge"],
         default="merge",
-        help="Inplace or merge operation",
+        help="Inplace or merge operation (default: %(default)s)",
     )
     parser.add_argument(
         "--batch_size",
         type=int,
         default=settings.BATCH_SIZE,
-        help="Batch size for training",
+        help="Batch size for training (default: %(default)d)",
     )
     parser.add_argument(
         "--poison_rate",
         type=float,
         default=settings.POISON_RATE,
-        help="Rate of poisoned samples in the dataset",
+        help="Rate of poisoned samples in the dataset (default: %(default)f)",
     )
     parser.add_argument(
-        "--save_name", type=str, default=None, help="Save name for statistics"
+        "--save_name",
+        type=str,
+        default=None,
+        help="Save name for statistics (default: stats_{{args.runtype}}_accuracy_and_attack_success_rate)",
     )
     parser.add_argument(
         "--epochs",
         type=int,
         default=settings.TRAINING_EPOCHS,
-        help="Number of epochs to run training",
+        help="Number of epochs to run training (default: %(default)d)",
     )
     parser.add_argument(
         "--calc_every_n_iter",
         type=int,
         default=10,
-        help="Save stats every given number of batches",
+        help="Save stats every given number of batches (default: %(default)d)",
     )
-    parser.add_argument("--defend", type=bool, default=False, help="Use defense or not")
+    parser.add_argument(
+        "--defend",
+        type=bool,
+        default=False,
+        help="Use defense or not (default: %(default)s)",
+    )
     args = parser.parse_args()
 
     if args.save_name is None:
@@ -147,8 +155,7 @@ def main():
     elif args.runtype == "attack":
         train_loader = train_loader_poisoned
         print("training model on poisoned dataset, establishing attack's baseline")
-    elif args.runtype == "defend":
-        raise NotImplementedError()
+
     train(
         device,
         model,
