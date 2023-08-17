@@ -43,7 +43,8 @@ def train(
     stats_file_name=None,
     test_loader_clean=None,
     test_loader_poisoned=None,
-    calc_states_every_nth_iter=10,
+    calc_stats_every_nth_iter=10,
+    calc_stats_on_training=True,
     epochs=1,
     defend=False,
 ):
@@ -59,8 +60,8 @@ def train(
 
     for _ in tqdm(range(epochs), desc="epoch"):
         for i, batch in enumerate(tqdm(train_loader, desc="batch")):
-            images, labels = batch[0], batch[1]
-            images, labels = images.to(device), labels.to(device)
+            images, labels, is_poisoned = batch
+            images, labels, is_poisoned = images.to(device), labels.to(device), is_poisoned.to(device)
 
             # Forward pass
             model.train()
@@ -68,14 +69,24 @@ def train(
             loss = criterion(outputs, labels)
 
             if defend:
-                defense(loss, optimizer, model, labels)
+                defense(loss, optimizer, model, labels, is_poisoned)
             else:
                 # Backward pass and optimization
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
-            if should_save_stats and i % calc_states_every_nth_iter == 0:
+            if calc_stats_on_training:
+                correct = (outputs.argmax(dim=1) == labels)
+                not_poisoned = correct[~is_poisoned]
+                poisoned = correct[is_poisoned]
+                accuracy = not_poisoned.sum()/len(not_poisoned)
+                rate = poisoned.sum()/len(poisoned)
+                accuracies.append(accuracy)
+                attack_success_rates.append(rate)
+                tqdm.write(f"i={i}: accuracy {accuracy}, attack success rate {rate}")
+
+            elif should_save_stats and i % calc_stats_every_nth_iter == 0:
                 # compute accuracy on clean test dataset
                 accuracy = calc_accuracy(device, model, test_loader_clean)
                 accuracies.append(accuracy)

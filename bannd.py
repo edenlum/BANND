@@ -41,7 +41,7 @@ def get_data_loaders(
 
     # add a small p% of poisoned samples to the train data
     train_loader_poisoned = DataLoader(
-        gen_poisoned_samples(
+        PoisonedDataset(
             train_data,
             poison_rate,
             "all_to_target",
@@ -53,7 +53,7 @@ def get_data_loaders(
     )
     # poison all samples to test the attacks success rate
     test_loader_poisoned = DataLoader(
-        gen_poisoned_samples(
+        PoisonedDataset(
             test_data,
             1.0,
             "all_to_target",
@@ -162,11 +162,12 @@ def main():
         train_loader,
         should_save_model=True,
         model_file_name="cnn_baseline",
-        should_save_stats=True,
+        should_save_stats=False,
+        calc_stats_on_training=True,
         stats_file_name=args.save_name,
         test_loader_clean=test_loader_clean,
         test_loader_poisoned=test_loader_poisoned,
-        calc_states_every_nth_iter=args.calc_every_n_iter,
+        calc_stats_every_nth_iter=args.calc_every_n_iter,
         epochs=args.epochs,
         defend=args.defend,
     )

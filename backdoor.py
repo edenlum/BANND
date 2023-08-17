@@ -19,7 +19,7 @@ def gen_poisoned_samples(
     attack_type: Literal["source_to_target", "all_to_target", "all_to_all_plus_one"],
     source_class: Optional[int] = None,
     target_class: Optional[int] = None,
-    inplace_or_merge: Literal["inplace", "merge", "only_poisoned"] = "merge",
+    inplace_or_merge: Literal["inplace", "merge"] = "merge",
 ):
     assert 0 < poisoning_rate <= 1
     num_poison = int(len(dataset) * poisoning_rate)
@@ -47,6 +47,8 @@ def gen_poisoned_samples(
     if inplace_or_merge == "inplace":
         poisoned_data.data[indices_to_poison] = backdoored_images
         poisoned_data.targets[indices_to_poison] = backdoored_classes
+        poison_indices = torch.zeros(len(poisoned_data.data), dtype=torch.bool)
+        poison_indices[indices_to_poison] = True
     elif inplace_or_merge == "merge":
         poisoned_data.data = torch.concat(
             (poisoned_data.data, backdoored_images), dim=0
@@ -54,26 +56,40 @@ def gen_poisoned_samples(
         poisoned_data.targets = torch.concat(
             (poisoned_data.targets, backdoored_classes), dim=0
         )
+        poison_indices = torch.zeros(len(poisoned_data.data), dtype=torch.bool)
+        poison_indices[len(dataset):] = True
     else:
         raise NotImplementedError()
 
-    return poisoned_data
+    return poisoned_data, poison_indices
 
 
-# class PoisonedDataset(torch.utils.data.Dataset):
-#     def __init__(self, original_dataset, poison_rate, return_indices=True):
-#         self.poisoned_data, self.poison_indices = poison_dataset(
-#             original_dataset, poison_rate
-#         )
-#         self.return_indices = return_indices
+class PoisonedDataset(torch.utils.data.Dataset):
+    def __init__(
+        self, 
+        dataset: torch.utils.data.Dataset,
+        poisoning_rate: float,
+        attack_type: Literal["source_to_target", "all_to_target", "all_to_all_plus_one"],
+        source_class: Optional[int] = None,
+        target_class: Optional[int] = None,
+        inplace_or_merge: Literal["inplace", "merge"] = "merge",
+        *args,
+        **kwargs,
+    ):
+        super(*args, **kwargs)
+        self.poisoned_data, self.poison_indices = gen_poisoned_samples(
+          dataset,
+          poisoning_rate,
+          attack_type, 
+          source_class,
+          target_class,
+          inplace_or_merge,
+        )
 
-#     def __getitem__(self, index):
-#         data, target = self.poisoned_data[index]
-#         is_poisoned = index in self.poison_indices
-#         if self.return_indices:
-#             return data, target, is_poisoned
-#         else:
-#             return data, target
+    def __getitem__(self, index):
+        data, target = self.poisoned_data[index]
+        is_poisoned = self.poison_indices[index]
+        return data, target, is_poisoned
 
-#     def __len__(self):
-#         return len(self.poisoned_data)
+    def __len__(self):
+        return len(self.poisoned_data)
