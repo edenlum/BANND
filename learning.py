@@ -95,8 +95,8 @@ def train(
                     correct = outputs.argmax(dim=1) == labels
                     not_poisoned = correct[~is_poisoned]
                     poisoned = correct[is_poisoned]
-                    accuracy = not_poisoned.sum() / len(not_poisoned)
-                    rate = poisoned.sum() / len(poisoned)
+                    accuracy = (not_poisoned.sum() / len(not_poisoned)).cpu()
+                    rate = (poisoned.sum() / len(poisoned)).cpu()
                 else:
                     # compute accuracy on clean test dataset
                     accuracy = calc_accuracy(device, model, test_loader_clean)
