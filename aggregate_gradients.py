@@ -177,9 +177,10 @@ def aggregate_all_params(
     weights = torch.cat(weights)
     avg_w_poisoned = weights[is_poisoned].mean() / weights.mean()
 
-    tqdm.write(green(f"sum/10: {weights.sum().item() / 10}"))
-    tqdm.write(green(f"avg w naive: {weights[is_poisoned].mean() * len(weights) / 10}"))
-    tqdm.write(green(f"Poisoned samples weights average: {avg_w_poisoned}"))
+    # tqdm.write(green(f"sum/10: {weights.sum().item() / 10}"))
+    # tqdm.write(green(f"avg w naive: {weights[is_poisoned].mean() * len(weights) / 10}"))
+    # tqdm.write(green(f"Poisoned samples weights average: {avg_w_poisoned}"))
+
     mean = torch.einsum("i,i...->...", weights, grads) / len(
         torch.unique(labels)
     )  # sum of weights = 1 for each class
