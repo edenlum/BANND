@@ -3,7 +3,7 @@ from typing import Literal, Optional
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from aggregate_gradients import aggregate_all_params
 from utils import save_model, save_stats_plots

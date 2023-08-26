@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
 from sklearn.decomposition import PCA
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from utils import *
 
