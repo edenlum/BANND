@@ -4,6 +4,8 @@ from typing import Literal, Optional
 import numpy as np
 import torch
 
+from utils import blue
+
 
 def white_square_watermark():
     # Define the watermark (backdoor trigger) and target class
@@ -24,7 +26,9 @@ def gen_poisoned_samples(
     assert 0 < poisoning_rate <= 1
     num_poison = int(len(dataset) * poisoning_rate)
     print(
-        f"generating {num_poison} poisoned samples from dataset of size {len(dataset)}, rate={poisoning_rate}, type={attack_type}, mode={inplace_or_merge}"
+        blue(
+            f"generating {num_poison} poisoned samples from dataset of size {len(dataset)}, rate={poisoning_rate}, type={attack_type}, mode={inplace_or_merge}"
+        )
     )
 
     backdoor = white_square_watermark()

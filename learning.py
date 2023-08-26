@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 from aggregate_gradients import aggregate_all_params
-from utils import save_model, save_stats_plots
+from utils import green, save_model, save_stats_plots
 
 
 def calc_accuracy(device, model, data_loader):
@@ -105,7 +105,9 @@ def train(
 
                 accuracies.append(accuracy)
                 attack_success_rates.append(rate)
-                tqdm.write(f"i={i}: accuracy {accuracy}, attack success rate {rate}")
+                tqdm.write(
+                    green(f"i={i}: accuracy {accuracy}, attack success rate {rate}")
+                )
 
     print("done training!")
 

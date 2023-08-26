@@ -106,7 +106,7 @@ def save_stats_plots(
     plt.subplots_adjust(top=0.8)
 
     path = f"plots/{file_name}.png"
-    print(f"saving stats (model accuracies and attack success rates) to {path}")
+    print(blue(f"saving stats (model accuracies and attack success rates) to {path}"))
     plt.savefig(path)
 
     plt.close()
@@ -114,5 +114,21 @@ def save_stats_plots(
 
 def save_model(model, file_name):
     path = f"data/models/{file_name}.pth"
-    print(f"saving model to {path}")
+    print(blue(f"saving model to {path}"))
     torch.save(model.state_dict(), path)
+
+
+def red(s: str) -> str:
+    return f"\033[0;31m{s}\033[0m"
+
+
+def green(s: str) -> str:
+    return f"\033[0;32m{s}\033[0m"
+
+
+def blue(s: str) -> str:
+    return f"\033[0;34m{s}\033[0m"
+
+
+def bold(s: str) -> str:
+    return f"\033[1m{s}\033[0m"

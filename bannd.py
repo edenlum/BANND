@@ -91,7 +91,7 @@ def bannd(
         ]
     )
 
-    print(f"title: {run_title}")
+    print(bold(f"title: {run_title}"))
 
     if dataset == "MNIST":
         dataset = datasets.MNIST
