@@ -61,7 +61,11 @@ def train(
     for _ in tqdm(range(epochs), desc="epoch"):
         for i, batch in enumerate(tqdm(train_loader, desc="batch")):
             images, labels, is_poisoned = batch
-            images, labels, is_poisoned = images.to(device), labels.to(device), is_poisoned.to(device)
+            images, labels, is_poisoned = (
+                images.to(device),
+                labels.to(device),
+                is_poisoned.to(device),
+            )
 
             # Forward pass
             model.train()
@@ -77,11 +81,11 @@ def train(
                 optimizer.step()
 
             if calc_stats_on_training:
-                correct = (outputs.argmax(dim=1) == labels)
+                correct = outputs.argmax(dim=1) == labels
                 not_poisoned = correct[~is_poisoned]
                 poisoned = correct[is_poisoned]
-                accuracy = not_poisoned.sum()/len(not_poisoned)
-                rate = poisoned.sum()/len(poisoned)
+                accuracy = not_poisoned.sum() / len(not_poisoned)
+                rate = poisoned.sum() / len(poisoned)
                 accuracies.append(accuracy)
                 attack_success_rates.append(rate)
                 tqdm.write(f"i={i}: accuracy {accuracy}, attack success rate {rate}")

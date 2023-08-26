@@ -57,7 +57,7 @@ def gen_poisoned_samples(
             (poisoned_data.targets, backdoored_classes), dim=0
         )
         poison_indices = torch.zeros(len(poisoned_data.data), dtype=torch.bool)
-        poison_indices[len(dataset):] = True
+        poison_indices[len(dataset) :] = True
     else:
         raise NotImplementedError()
 
@@ -66,10 +66,12 @@ def gen_poisoned_samples(
 
 class PoisonedDataset(torch.utils.data.Dataset):
     def __init__(
-        self, 
+        self,
         dataset: torch.utils.data.Dataset,
         poisoning_rate: float,
-        attack_type: Literal["source_to_target", "all_to_target", "all_to_all_plus_one"],
+        attack_type: Literal[
+            "source_to_target", "all_to_target", "all_to_all_plus_one"
+        ],
         source_class: Optional[int] = None,
         target_class: Optional[int] = None,
         inplace_or_merge: Literal["inplace", "merge"] = "merge",
@@ -78,12 +80,12 @@ class PoisonedDataset(torch.utils.data.Dataset):
     ):
         super(*args, **kwargs)
         self.poisoned_data, self.poison_indices = gen_poisoned_samples(
-          dataset,
-          poisoning_rate,
-          attack_type, 
-          source_class,
-          target_class,
-          inplace_or_merge,
+            dataset,
+            poisoning_rate,
+            attack_type,
+            source_class,
+            target_class,
+            inplace_or_merge,
         )
 
     def __getitem__(self, index):
