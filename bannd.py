@@ -69,6 +69,82 @@ def get_data_loaders(
     )
 
 
+def bannd(
+    runtype,
+    dataset="MNIST",
+    inplace_or_merge=settings.DEFAULT_INPLACE_OR_MERGE,
+    batch_size=settings.DEFAULT_BATCH_SIZE,
+    poison_rate=settings.DEFAULT_POISON_RATE,
+    save_name=None,
+    epochs=settings.DEFAULT_TRAINING_EPOCHS,
+    calc_every_n_iter=10,
+    calc_stats_on="train",
+):
+    run_title = "_".join(
+        [
+            runtype,
+            dataset,
+            f"poison_{poison_rate}_{inplace_or_merge}",
+            f"epochs_{epochs}",
+            f"batch_{batch_size}",
+            f"calc_every_{calc_every_n_iter}_batches_on_{calc_stats_on}_dataset",
+        ]
+    )
+
+    print(f"title: {run_title}")
+
+    if dataset == "MNIST":
+        dataset = datasets.MNIST
+    elif dataset == "CIFAR10":
+        dataset = datasets.CIFAR10
+    else:
+        raise NotImplementedError()
+
+    (
+        train_loader_clean,
+        train_loader_poisoned,
+        test_loader_clean,
+        test_loader_poisoned,
+    ) = get_data_loaders(dataset, inplace_or_merge, batch_size, poison_rate)
+
+    # Initialize the network
+    model = SimpleConvNet()
+
+    if runtype == "baseline":
+        train_loader = train_loader_clean
+        print("training model on clean dataset, establishing model's baseline")
+        assert (
+            calc_stats_on == "test"
+        ), "baseline stats can only be calculated on train dataset; run again with `--calc-stats-on test`"
+    elif runtype == "attack":
+        train_loader = train_loader_poisoned
+        print("training model on poisoned dataset, establishing attack's baseline")
+    elif runtype == "defense":
+        train_loader = train_loader_poisoned
+        print(
+            "training model on poisoned dataset and defending against it, establishing defense's success"
+        )
+
+    train(
+        device=device,
+        model=model,
+        epochs=epochs,
+        defend=runtype == "defense",
+        #
+        train_loader=train_loader,
+        test_loader_clean=test_loader_clean,
+        test_loader_poisoned=test_loader_poisoned,
+        #
+        should_save_model=True,
+        model_file_name=f"cnn_{run_title}",
+        #
+        should_save_stats=True,
+        stats_file_name=save_name or f"stats_{run_title}",
+        calc_stats_every_nth_iter=calc_every_n_iter,
+        calc_stats_on_train_or_test=calc_stats_on,
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description="Train and evaluate a neural network.")
     parser.add_argument(
@@ -124,70 +200,16 @@ def main():
     )
     args = parser.parse_args()
 
-    run_title = "_".join(
-        [
-            args.runtype,
-            args.dataset,
-            f"poison_{args.poison_rate}_{args.inplace_or_merge}",
-            f"epochs_{args.epochs}",
-            f"batch_{args.batch_size}",
-            f"calc_every_{args.calc_every_n_iter}_batches_on_{args.calc_stats_on}_dataset",
-        ]
-    )
-
-    print(run_title)
-
-    if args.dataset == "MNIST":
-        dataset = datasets.MNIST
-    elif args.dataset == "CIFAR10":
-        dataset = datasets.CIFAR10
-    else:
-        raise NotImplementedError()
-
-    (
-        train_loader_clean,
-        train_loader_poisoned,
-        test_loader_clean,
-        test_loader_poisoned,
-    ) = get_data_loaders(
-        dataset, args.inplace_or_merge, args.batch_size, args.poison_rate
-    )
-
-    # Initialize the network
-    model = SimpleConvNet()
-
-    if args.runtype == "baseline":
-        train_loader = train_loader_clean
-        print("training model on clean dataset, establishing model's baseline")
-        assert (
-            args.calc_stats_on == "test"
-        ), "baseline stats can only be calculated on train dataset; run again with `--calc-stats-on test`"
-    elif args.runtype == "attack":
-        train_loader = train_loader_poisoned
-        print("training model on poisoned dataset, establishing attack's baseline")
-    elif args.runtype == "defense":
-        train_loader = train_loader_poisoned
-        print(
-            "training model on poisoned dataset and defending against it, establishing defense's success"
-        )
-
-    train(
-        device=device,
-        model=model,
-        epochs=args.epochs,
-        defend=args.runtype == "defense",
-        #
-        train_loader=train_loader,
-        test_loader_clean=test_loader_clean,
-        test_loader_poisoned=test_loader_poisoned,
-        #
-        should_save_model=True,
-        model_file_name=f"cnn_{run_title}",
-        #
-        should_save_stats=True,
-        stats_file_name=args.save_name or f"stats_{run_title}",
-        calc_stats_every_nth_iter=args.calc_every_n_iter,
-        calc_stats_on_train_or_test=args.calc_stats_on,
+    bannd(
+        args.runtype,
+        args.dataset,
+        args.inplace_or_merge,
+        args.batch_size,
+        args.poison_rate,
+        args.save_name,
+        args.epochs,
+        args.calc_every_n_iter,
+        args.calc_stats_on,
     )
 
 
