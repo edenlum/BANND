@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
 from sklearn.decomposition import PCA
+from tqdm import tqdm
 
 from utils import *
 
@@ -176,9 +177,9 @@ def aggregate_all_params(
     weights = torch.cat(weights)
     avg_w_poisoned = weights[is_poisoned].mean() / weights.mean()
 
-    print("sum/10: ", weights.sum().item() / 10)
-    print("avg w naive: ", weights[is_poisoned].mean() * len(weights) / 10)
-    print("Poisoned samples weights average: ", avg_w_poisoned)
+    tqdm.write(f"sum/10: {weights.sum().item() / 10}")
+    tqdm.write(f"avg w naive: {weights[is_poisoned].mean() * len(weights) / 10}")
+    tqdm.write(f"Poisoned samples weights average: {avg_w_poisoned}")
     mean = torch.einsum("i,i...->...", weights, grads) / len(
         torch.unique(labels)
     )  # sum of weights = 1 for each class
