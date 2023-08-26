@@ -1,8 +1,10 @@
+from typing import Literal, Optional
+
 import torch
 from torch import nn
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-import settings
 from aggregate_gradients import aggregate_all_params
 from utils import save_model, save_stats_plots
 
@@ -34,19 +36,23 @@ def calc_accuracy(device, model, data_loader):
 
 
 def train(
+    *,
     device,
     model,
-    train_loader,
-    should_save_model=False,
-    model_file_name=None,
-    should_save_stats=False,
-    stats_file_name=None,
-    test_loader_clean=None,
-    test_loader_poisoned=None,
-    calc_stats_every_nth_iter=10,
-    calc_stats_on_training=True,
-    epochs=1,
-    defend=False,
+    epochs: int = 1,
+    defend: bool = False,
+    #
+    train_loader: DataLoader,
+    test_loader_clean: Optional[DataLoader] = None,
+    test_loader_poisoned: Optional[DataLoader] = None,
+    #
+    should_save_model: bool = False,
+    model_file_name: Optional[str] = None,
+    #
+    should_save_stats: bool = False,
+    stats_file_name: Optional[str] = None,
+    calc_stats_every_nth_iter: int = 10,
+    calc_stats_on_train_or_test: Literal["train", "test"] = "train",
 ):
     print("training model...")
 
@@ -60,12 +66,16 @@ def train(
 
     for _ in tqdm(range(epochs), desc="epoch"):
         for i, batch in enumerate(tqdm(train_loader, desc="batch")):
-            images, labels, is_poisoned = batch
-            images, labels, is_poisoned = (
-                images.to(device),
-                labels.to(device),
-                is_poisoned.to(device),
-            )
+            if len(batch) == 2:
+                images, labels = batch
+                images, labels = images.to(device), labels.to(device)
+            else:
+                images, labels, is_poisoned = batch
+                images, labels, is_poisoned = (
+                    images.to(device),
+                    labels.to(device),
+                    is_poisoned.to(device),
+                )
 
             # Forward pass
             model.train()
@@ -80,24 +90,21 @@ def train(
                 loss.backward()
                 optimizer.step()
 
-            if calc_stats_on_training:
-                correct = outputs.argmax(dim=1) == labels
-                not_poisoned = correct[~is_poisoned]
-                poisoned = correct[is_poisoned]
-                accuracy = not_poisoned.sum() / len(not_poisoned)
-                rate = poisoned.sum() / len(poisoned)
+            if should_save_stats and (i % calc_stats_every_nth_iter == 0):
+                if calc_stats_on_train_or_test == "train":
+                    correct = outputs.argmax(dim=1) == labels
+                    not_poisoned = correct[~is_poisoned]
+                    poisoned = correct[is_poisoned]
+                    accuracy = not_poisoned.sum() / len(not_poisoned)
+                    rate = poisoned.sum() / len(poisoned)
+                else:
+                    # compute accuracy on clean test dataset
+                    accuracy = calc_accuracy(device, model, test_loader_clean)
+                    # compute attack success rate on poisoned test dataset
+                    rate = calc_accuracy(device, model, test_loader_poisoned)
+
                 accuracies.append(accuracy)
                 attack_success_rates.append(rate)
-                tqdm.write(f"i={i}: accuracy {accuracy}, attack success rate {rate}")
-
-            elif should_save_stats and i % calc_stats_every_nth_iter == 0:
-                # compute accuracy on clean test dataset
-                accuracy = calc_accuracy(device, model, test_loader_clean)
-                accuracies.append(accuracy)
-                # compute attack success rate on poisoned test dataset
-                rate = calc_accuracy(device, model, test_loader_poisoned)
-                attack_success_rates.append(rate)
-
                 tqdm.write(f"i={i}: accuracy {accuracy}, attack success rate {rate}")
 
     print("done training!")

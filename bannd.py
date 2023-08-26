@@ -3,11 +3,8 @@ import random
 
 import numpy as np
 import torch
-import torch.nn.functional as F
-from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-from tqdm import tqdm
 
 import settings
 from aggregate_gradients import *
@@ -26,9 +23,9 @@ print(device)
 
 def get_data_loaders(
     dataset: datasets.VisionDataset,
-    inplace_or_merge: str = settings.INPLACE_OR_MERGE,
-    batch_size: int = settings.BATCH_SIZE,
-    poison_rate: float = settings.POISON_RATE,
+    inplace_or_merge: str = settings.DEFAULT_INPLACE_OR_MERGE,
+    batch_size: int = settings.DEFAULT_BATCH_SIZE,
+    poison_rate: float = settings.DEFAULT_POISON_RATE,
 ):
     # Load the dataset
     transform = transforms.Compose([transforms.ToTensor()])
@@ -45,7 +42,7 @@ def get_data_loaders(
             train_data,
             poison_rate,
             "all_to_target",
-            target_class=1,
+            target_class=settings.TARGET_CLASS,
             inplace_or_merge=inplace_or_merge,
         ),
         batch_size=batch_size,
@@ -57,7 +54,7 @@ def get_data_loaders(
             test_data,
             1.0,
             "all_to_target",
-            target_class=1,
+            target_class=settings.TARGET_CLASS,
             inplace_or_merge="inplace",
         ),
         batch_size=batch_size,
@@ -74,7 +71,9 @@ def get_data_loaders(
 
 def main():
     parser = argparse.ArgumentParser(description="Train and evaluate a neural network.")
-    parser.add_argument("--runtype", choices=["baseline", "attack"], help="Type of run")
+    parser.add_argument(
+        "--runtype", choices=["baseline", "attack", "defense"], help="Type of run"
+    )
     parser.add_argument(
         "--dataset",
         choices=["MNIST", "CIFAR10"],
@@ -84,31 +83,31 @@ def main():
     parser.add_argument(
         "--inplace_or_merge",
         choices=["inplace", "merge"],
-        default="merge",
+        default=settings.DEFAULT_INPLACE_OR_MERGE,
         help="Inplace or merge operation (default: %(default)s)",
     )
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=settings.BATCH_SIZE,
+        default=settings.DEFAULT_BATCH_SIZE,
         help="Batch size for training (default: %(default)d)",
     )
     parser.add_argument(
         "--poison_rate",
         type=float,
-        default=settings.POISON_RATE,
+        default=settings.DEFAULT_POISON_RATE,
         help="Rate of poisoned samples in the dataset (default: %(default)f)",
     )
     parser.add_argument(
         "--save_name",
         type=str,
         default=None,
-        help="Save name for statistics (default: stats_{{args.runtype}}_accuracy_and_attack_success_rate)",
+        help="Save name for statistics (default: stats_{run_title}_accuracy_and_attack_success_rate)",
     )
     parser.add_argument(
         "--epochs",
         type=int,
-        default=settings.TRAINING_EPOCHS,
+        default=settings.DEFAULT_TRAINING_EPOCHS,
         help="Number of epochs to run training (default: %(default)d)",
     )
     parser.add_argument(
@@ -118,15 +117,25 @@ def main():
         help="Save stats every given number of batches (default: %(default)d)",
     )
     parser.add_argument(
-        "--defend",
-        type=bool,
-        default=False,
-        help="Use defense or not (default: %(default)s)",
+        "--calc-stats-on",
+        choices=["test", "train"],
+        default="train",
+        help="Calculate stats (accuracy, attack success rate) on test/train dataset (default: %(default)s)",
     )
     args = parser.parse_args()
 
-    if args.save_name is None:
-        args.save_name = f"stats_{args.runtype}_accuracy_and_attack_success_rate"
+    run_title = "_".join(
+        [
+            args.runtype,
+            args.dataset,
+            f"poison_{args.poison_rate}_{args.inplace_or_merge}",
+            f"epochs_{args.epochs}",
+            f"batch_{args.batch_size}",
+            f"calc_every_{args.calc_every_n_iter}_batches_on_{args.calc_stats_on}_dataset",
+        ]
+    )
+
+    print(run_title)
 
     if args.dataset == "MNIST":
         dataset = datasets.MNIST
@@ -134,8 +143,6 @@ def main():
         dataset = datasets.CIFAR10
     else:
         raise NotImplementedError()
-
-    print(args)
 
     (
         train_loader_clean,
@@ -152,24 +159,35 @@ def main():
     if args.runtype == "baseline":
         train_loader = train_loader_clean
         print("training model on clean dataset, establishing model's baseline")
+        assert (
+            args.calc_stats_on == "test"
+        ), "baseline stats can only be calculated on train dataset; run again with `--calc-stats-on test`"
     elif args.runtype == "attack":
         train_loader = train_loader_poisoned
         print("training model on poisoned dataset, establishing attack's baseline")
+    elif args.runtype == "defense":
+        train_loader = train_loader_poisoned
+        print(
+            "training model on poisoned dataset and defending against it, establishing defense's success"
+        )
 
     train(
-        device,
-        model,
-        train_loader,
-        should_save_model=True,
-        model_file_name="cnn_baseline",
-        should_save_stats=False,
-        calc_stats_on_training=True,
-        stats_file_name=args.save_name,
+        device=device,
+        model=model,
+        epochs=args.epochs,
+        defend=args.runtype == "defense",
+        #
+        train_loader=train_loader,
         test_loader_clean=test_loader_clean,
         test_loader_poisoned=test_loader_poisoned,
+        #
+        should_save_model=True,
+        model_file_name=f"cnn_{run_title}",
+        #
+        should_save_stats=True,
+        stats_file_name=args.save_name or f"stats_{run_title}",
         calc_stats_every_nth_iter=args.calc_every_n_iter,
-        epochs=args.epochs,
-        defend=args.defend,
+        calc_stats_on_train_or_test=args.calc_stats_on,
     )
 
 

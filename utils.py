@@ -1,6 +1,7 @@
 import gzip
 import os
 import pickle
+from textwrap import wrap
 
 import torch
 from matplotlib import pyplot as plt
@@ -77,7 +78,7 @@ def save_stats_plots(
     num_plots = 2 if avg_weight_ratios is None else 3
 
     plt.figure(figsize=(num_plots * 5, 5))
-    plt.suptitle(file_name)
+    plt.suptitle("\n".join(wrap(file_name)))
 
     plt.subplot(1, num_plots, 1)
     plt.plot(accuracies)
@@ -101,6 +102,8 @@ def save_stats_plots(
         plt.title("Average Weight Ratio")
         plt.xlabel("Batch")
         plt.ylabel("Ratio")
+
+    plt.subplots_adjust(top=0.8)
 
     path = f"plots/{file_name}.png"
     print(f"saving stats (model accuracies and attack success rates) to {path}")
