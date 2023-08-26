@@ -78,16 +78,16 @@ def bannd(
     save_name=None,
     epochs=settings.DEFAULT_TRAINING_EPOCHS,
     calc_every_n_iter=10,
-    calc_stats_on="train",
+    calc_stats_on="test",
 ):
     run_title = "_".join(
         [
             runtype,
             dataset,
-            f"poison_{poison_rate}_{inplace_or_merge}",
-            f"epochs_{epochs}",
-            f"batch_{batch_size}",
-            f"calc_every_{calc_every_n_iter}_batches_on_{calc_stats_on}_dataset",
+            f"p{poison_rate}-{inplace_or_merge}",
+            f"e{epochs}",
+            f"b{batch_size}",
+            f"calc-every-{calc_every_n_iter}-on-{calc_stats_on}",
         ]
     )
 
@@ -195,7 +195,7 @@ def main():
     parser.add_argument(
         "--calc-stats-on",
         choices=["test", "train"],
-        default="train",
+        default="test",
         help="Calculate stats (accuracy, attack success rate) on test/train dataset (default: %(default)s)",
     )
     args = parser.parse_args()
