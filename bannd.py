@@ -87,7 +87,7 @@ def bannd(
             f"p{poison_rate}-{inplace_or_merge}",
             f"e{epochs}",
             f"b{batch_size}",
-            f"calc-every-{calc_every_n_iter}-on-{calc_stats_on}",
+            f"every-{calc_every_n_iter}-on-{calc_stats_on}",
         ]
     )
 
