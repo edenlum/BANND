@@ -41,6 +41,7 @@ def train(
     model,
     epochs: int = 1,
     defend: bool = False,
+    sim_threshold: float = 0,
     #
     train_loader: DataLoader,
     test_loader_clean: Optional[DataLoader] = None,
@@ -83,7 +84,7 @@ def train(
             loss = criterion(outputs, labels)
 
             if defend:
-                defense(loss, optimizer, model, labels, is_poisoned)
+                defense(loss, optimizer, model, labels, is_poisoned, sim_threshold=sim_threshold)
             else:
                 # Backward pass and optimization
                 optimizer.zero_grad()
@@ -118,7 +119,7 @@ def train(
         save_model(model, model_file_name)
 
 
-def defense(losses, optimizer, model, labels, is_poisoned=None, batch_idx=1):
+def defense(losses, optimizer, model, labels, is_poisoned=None, batch_idx=1, sim_threshold=0):
     # Initialize a list to hold the gradients for each sample
     gradients = []
 
@@ -142,6 +143,7 @@ def defense(losses, optimizer, model, labels, is_poisoned=None, batch_idx=1):
         plot=False,
         save_gradients=False,
         name_to_save=f"batch_{batch_idx}",
+        sim_threshold=sim_threshold
     )
 
     # Apply the aggregated gradients
