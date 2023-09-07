@@ -98,7 +98,7 @@ def save_stats_plots(
 
     if avg_weight_ratios is not None:
         plt.subplot(1, num_plots, 3)
-        plt.plot(avg_weight_ratios.cpu().numpy())
+        plt.plot(avg_weight_ratios)
         plt.title("Average Weight Ratio")
         plt.xlabel("Batch")
         plt.ylabel("Ratio")

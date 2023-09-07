@@ -167,12 +167,12 @@ def aggregate_all_params(
 
         if plot:
             plot_gradients_pca(
-                c_grads, is_poisoned[(labels == c).cpu()], f"all_params_{c}"
+                c_grads, is_poisoned[(labels == c).cpu()].cpu(), f"all_params_{c}"
             )
 
     grads = torch.cat(grads)
     if plot:
-        plot_gradients_pca(grads, is_poisoned, "all_params")
+        plot_gradients_pca(grads, is_poisoned.cpu(), "all_params")
 
     weights = torch.cat(weights)
     avg_w_poisoned = weights[is_poisoned].mean() / weights.mean()
@@ -192,7 +192,7 @@ def aggregate_all_params(
     for i, name in enumerate(grads_list[0].keys()):
         aggregated_gradients[name] = mean_per_param[i].reshape(original_shapes[name])
 
-    return aggregated_gradients, avg_w_poisoned
+    return aggregated_gradients, avg_w_poisoned.item()
 
 
 def plot_gradients_pca(gradients, is_poisoned, name):

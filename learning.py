@@ -2,6 +2,7 @@ from typing import Literal, Optional
 
 import torch
 from torch import nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
@@ -41,6 +42,7 @@ def train(
     model,
     epochs: int = 1,
     defend: bool = False,
+    similarity: str = "cosine",
     #
     train_loader: DataLoader,
     test_loader_clean: Optional[DataLoader] = None,
@@ -63,6 +65,7 @@ def train(
 
     accuracies = []
     attack_success_rates = []
+    avg_weight_poisoned_list = []
 
     for _ in tqdm(range(epochs), desc="epoch"):
         for i, batch in enumerate(tqdm(train_loader, desc="batch")):
@@ -83,7 +86,7 @@ def train(
             loss = criterion(outputs, labels)
 
             if defend:
-                defense(loss, optimizer, model, labels, is_poisoned)
+                avg_weight_poisoned = defense(loss, optimizer, model, labels, similarity, is_poisoned, i)
             else:
                 # Backward pass and optimization
                 optimizer.zero_grad()
@@ -105,20 +108,26 @@ def train(
 
                 accuracies.append(accuracy)
                 attack_success_rates.append(rate)
-                tqdm.write(
-                    green(f"i={i}: accuracy {accuracy}, attack success rate {rate}")
-                )
+                if defend:
+                    avg_weight_poisoned_list.append(avg_weight_poisoned)
+                    tqdm.write(
+                        green(f"i={i}: accuracy {accuracy}, attack success rate {rate}, avg_weight_poisoned {avg_weight_poisoned}")
+                    )
+                else:
+                    tqdm.write(
+                        green(f"i={i}: accuracy {accuracy}, attack success rate {rate}")
+                    )
 
     print("done training!")
 
     if should_save_stats:
-        save_stats_plots(stats_file_name, accuracies, attack_success_rates)
+        save_stats_plots(stats_file_name, accuracies, attack_success_rates, avg_weight_poisoned_list if defend else None)
 
     if should_save_model:
         save_model(model, model_file_name)
 
 
-def defense(losses, optimizer, model, labels, is_poisoned=None, batch_idx=1):
+def defense(losses, optimizer, model, labels, similarity="cosine", is_poisoned=None, batch_idx=1):
     # Initialize a list to hold the gradients for each sample
     gradients = []
 
@@ -132,16 +141,21 @@ def defense(losses, optimizer, model, labels, is_poisoned=None, batch_idx=1):
             {name: param.grad.clone() for name, param in model.named_parameters()}
         )
 
-    # save_gradient_means(gradients, labels, is_poisoned)
-    # similarity = lambda grads, mean: torch.norm(grads-mean, dim=1)
+    if similarity == "l2":
+        similarity = lambda grads, mean: torch.norm(grads-mean, dim=1)
+    elif similarity == "cosine":
+        similarity = F.cosine_similarity
+    else:
+        raise NotImplementedError
     # aggregated_gradients, avg_weight_poisoned = aggregate_gradients_cosine(gradients, labels, is_poisoned, plot=(i==0))
     aggregated_gradients, avg_weight_poisoned = aggregate_all_params(
         gradients,
         labels,
         is_poisoned,
-        plot=False,
+        plot=(batch_idx==0),
         save_gradients=False,
         name_to_save=f"batch_{batch_idx}",
+        similarity=similarity
     )
 
     # Apply the aggregated gradients
@@ -149,3 +163,6 @@ def defense(losses, optimizer, model, labels, is_poisoned=None, batch_idx=1):
     for name, param in model.named_parameters():
         param.grad = aggregated_gradients[name]
     optimizer.step()
+
+    return avg_weight_poisoned
+

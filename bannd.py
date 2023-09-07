@@ -79,6 +79,7 @@ def bannd(
     epochs=settings.DEFAULT_TRAINING_EPOCHS,
     calc_every_n_iter=10,
     calc_stats_on="test",
+    similarity="cosine"
 ):
     run_title = "_".join(
         [
@@ -130,6 +131,7 @@ def bannd(
         model=model,
         epochs=epochs,
         defend=runtype == "defense",
+        similarity = similarity,
         #
         train_loader=train_loader,
         test_loader_clean=test_loader_clean,
@@ -198,6 +200,12 @@ def main():
         default="test",
         help="Calculate stats (accuracy, attack success rate) on test/train dataset (default: %(default)s)",
     )
+    parser.add_argument(
+        "--similarity",
+        choices=["cosine", "l2"],
+        default="cosine",
+        help="Choose the similarity function (default: %(default)s)",
+    )
     args = parser.parse_args()
 
     bannd(
@@ -210,6 +218,7 @@ def main():
         args.epochs,
         args.calc_every_n_iter,
         args.calc_stats_on,
+        args.similarity,
     )
 
 
