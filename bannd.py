@@ -82,6 +82,7 @@ def bannd(
     # calc_stats_on="test",
     # similarity="cosine",
     threshold: float = 0,
+    plots_dir: str = "./plots/",
 ):
     run_title = "_".join(
         [
@@ -161,6 +162,7 @@ def bannd(
         #
         should_save_stats=True,
         stats_file_name=f"stats_{run_title}",
+        plots_dir=plots_dir,
         calc_stats_every_nth_iter=calc_every_n_iter,
         calc_stats_on_train_or_test=calc_stats_on,
     )
@@ -231,6 +233,12 @@ def main():
         default=settings.DEFAULT_POISON_RATE,
         help="Threshold to discard samples that have less than that in their similarity score. `softmax()` is applied to the samples according to their similarity score after applying the threshold. Pass `0` for no threshold, i.e., use all samples. (default: %(default)f)",
     )
+    parser.add_argument(
+        "--plots-dir",
+        type=str,
+        default="./plots/",
+        help="Output directory of plots (hint: `from google.colab import drive; drive.mount('/content/drive')` and then save the plots to drive in case the colab session disconnects) (default: %(default)s)",
+    )
     args = parser.parse_args()
 
     bannd(
@@ -245,6 +253,7 @@ def main():
         # args.calc_stats_on,
         # args.similarity,
         args.threshold,
+        args.plots_dir,
     )
 
 

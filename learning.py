@@ -54,6 +54,7 @@ def train(
     #
     should_save_stats: bool = False,
     stats_file_name: Optional[str] = None,
+    plots_dir: str = "./plots/",
     calc_stats_every_nth_iter: int = 10,
     calc_stats_on_train_or_test: Literal["train", "test"] = "train",
 ):
@@ -135,6 +136,7 @@ def train(
     if should_save_stats:
         save_stats_plots(
             stats_file_name,
+            plots_dir,
             accuracies,
             attack_success_rates,
             avg_weight_poisoned_list if defend else None,

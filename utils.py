@@ -74,12 +74,21 @@ def smooth_labels(labels, num_classes, smoothing=0.1):
 
 
 def save_stats_plots(
-    file_name, accuracies, attack_success_rates, avg_weight_ratios=None
+    file_name,
+    plots_dir,
+    accuracies,
+    attack_success_rates,
+    avg_weight_ratios=None,
 ):
     num_plots = 2 if avg_weight_ratios is None else 3
 
+    # can just use `str.removeprefix()` in python > 3.10
+    title = file_name
+    if title.startswith("stats_"):
+        title = title[len("stats_") :]
+
     plt.figure(figsize=(num_plots * 5, 5))
-    plt.suptitle("\n".join(wrap(file_name)))
+    plt.suptitle("\n".join(wrap(title)))
 
     plt.subplot(1, num_plots, 1)
     plt.plot(accuracies)
@@ -106,7 +115,7 @@ def save_stats_plots(
 
     plt.subplots_adjust(top=0.8)
 
-    path = f"/content/drive/MyDrive/sim_threshold_results/{file_name}.png"
+    path = os.path.join(plots_dir, f"{file_name}.png")
     print(blue(f"saving stats (model accuracies and attack success rates) to {path}"))
     plt.savefig(path)
 
