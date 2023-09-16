@@ -139,6 +139,7 @@ def train(
             plots_dir,
             accuracies,
             attack_success_rates,
+            calc_stats_every_nth_iter,
             avg_weight_poisoned_list if defend else None,
         )
 

@@ -78,6 +78,7 @@ def save_stats_plots(
     plots_dir,
     accuracies,
     attack_success_rates,
+    every_x_batches,
     avg_weight_ratios=None,
 ):
     num_plots = 2 if avg_weight_ratios is None else 3
@@ -93,7 +94,7 @@ def save_stats_plots(
     plt.subplot(1, num_plots, 1)
     plt.plot(accuracies)
     plt.title("Accuracy")
-    plt.xlabel("Batch")
+    plt.xlabel(f"Batch/{every_x_batches}")
     plt.ylabel("Accuracy")
     plt.ylim(0, 100)
     plt.yticks(list(range(0, 106, 5)))
@@ -101,7 +102,7 @@ def save_stats_plots(
     plt.subplot(1, num_plots, 2)
     plt.plot(attack_success_rates)
     plt.title("Attack Success Rate")
-    plt.xlabel("Batch")
+    plt.xlabel(f"Batch/{every_x_batches}")
     plt.ylabel("Success Rate")
     plt.ylim(0, 100)
     plt.yticks(list(range(0, 106, 5)))
