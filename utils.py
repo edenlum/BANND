@@ -126,7 +126,6 @@ def save_stats_plots(
 def plot_sim_scores(file_name, grads, is_poisoned, class_title):
     plt.title(f"AVG Gradient Similarity Score for class {class_title}")
     grads_indices = np.arange(grads.size(0))
-    print(grads_indices)
     plt.scatter(grads_indices, grads, c=is_poisoned)
     path = f"plots/{file_name}.png"
     plt.savefig(path)

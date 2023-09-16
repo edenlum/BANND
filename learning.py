@@ -43,7 +43,8 @@ def train(
     epochs: int = 1,
     defend: bool = False,
     similarity: str = "cosine",
-    threshold: float = 0,
+    hard_threshold: Optional[float] = None,
+    quantile_threshold: Optional[float] = None,
     #
     train_loader: DataLoader,
     test_loader_clean: Optional[DataLoader] = None,
@@ -96,7 +97,8 @@ def train(
                     is_poisoned,
                     i,
                     similarity,
-                    threshold,
+                    hard_threshold,
+                    quantile_threshold,
                 )
             else:
                 # Backward pass and optimization
@@ -155,7 +157,8 @@ def defense(
     is_poisoned=None,
     batch_idx=1,
     similarity="cosine",
-    threshold=0,
+    hard_threshold=None,
+    quantile_threshold=None,
 ):
     # Initialize a list to hold the gradients for each sample
     gradients = []
@@ -181,11 +184,13 @@ def defense(
         gradients,
         labels,
         is_poisoned,
-        plot=(batch_idx == 0),
+        plot=False,
+        # plot=(batch_idx == 0),
         save_gradients=False,
         name_to_save=f"batch_{batch_idx}",
         similarity=similarity,
-        threshold=threshold,
+        hard_threshold=hard_threshold,
+        quantile_threshold=quantile_threshold,
     )
 
     # Apply the aggregated gradients

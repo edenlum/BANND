@@ -1,6 +1,6 @@
 import argparse
 import random
-from typing import Literal
+from typing import Literal, Optional
 
 import numpy as np
 import torch
@@ -81,15 +81,29 @@ def bannd(
     # calc_every_n_iter=10,
     # calc_stats_on="test",
     # similarity="cosine",
-    threshold: float = 0,
+    hard_threshold: Optional[float] = None,
+    quantile_threshold: Optional[float] = None,
     plots_dir: str = "./plots/",
 ):
+    if runtype == "defense":
+        assert (hard_threshold is None and quantile_threshold is not None) or (
+            hard_threshold is not None and quantile_threshold is None
+        ), "pass either --hard-threshold or --quantile-threshold, not both!"
+
     run_title = "_".join(
         [
             runtype,
             dataset,
             *([f"p{poison_rate}"] if runtype in ["attack", "defense"] else []),
-            *([f"t{threshold}"] if runtype == "defense" else []),
+            *(
+                [
+                    f"ht{hard_threshold}"
+                    if hard_threshold is not None
+                    else f"qt{quantile_threshold}"
+                ]
+                if runtype == "defense"
+                else []
+            ),
             # f"p{poison_rate}-{inplace_or_merge}",
             # f"e{epochs}",
             # f"b{batch_size}",
@@ -151,7 +165,8 @@ def bannd(
         epochs=epochs,
         defend=runtype == "defense",
         similarity=similarity,
-        threshold=threshold,
+        hard_threshold=hard_threshold,
+        quantile_threshold=quantile_threshold,
         #
         train_loader=train_loader,
         test_loader_clean=test_loader_clean,
@@ -228,11 +243,16 @@ def main():
     #     help="Choose the similarity function (default: %(default)s)",
     # )
     parser.add_argument(
-        "--threshold",
+        "--hard-threshold",
         type=float,
-        default=settings.DEFAULT_POISON_RATE,
-        help="Threshold to discard samples that have less than that in their similarity score. `softmax()` is applied to the samples according to their similarity score after applying the threshold. Pass `0` for no threshold, i.e., use all samples. (default: %(default)f)",
+        help="Threshold to discard samples that have less than that in their similarity score. `softmax()` is applied to the samples according to their similarity score after applying the threshold. Pass `0` for no threshold, i.e., use all samples.",
     )
+    parser.add_argument(
+        "--quantile-threshold",
+        type=float,
+        help="Quantile Threshold to discard samples that have less than that in their similarity score. `softmax()` is applied to the samples according to their similarity score after applying the threshold. Pass `0` for no threshold, i.e., use all samples.",
+    )
+
     parser.add_argument(
         "--plots-dir",
         type=str,
@@ -252,7 +272,8 @@ def main():
         # args.calc_every_n_iter,
         # args.calc_stats_on,
         # args.similarity,
-        args.threshold,
+        args.hard_threshold,
+        args.quantile_threshold,
         args.plots_dir,
     )
 
