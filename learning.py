@@ -43,7 +43,7 @@ def train(
     epochs: int = 1,
     defend: bool = False,
     similarity: str = "cosine",
-    sim_threshold: float = 0,
+    threshold: float = 0,
     #
     train_loader: DataLoader,
     test_loader_clean: Optional[DataLoader] = None,
@@ -95,7 +95,7 @@ def train(
                     is_poisoned,
                     i,
                     similarity,
-                    sim_threshold,
+                    threshold,
                 )
             else:
                 # Backward pass and optimization
@@ -152,7 +152,7 @@ def defense(
     is_poisoned=None,
     batch_idx=1,
     similarity="cosine",
-    sim_threshold=0,
+    threshold=0,
 ):
     # Initialize a list to hold the gradients for each sample
     gradients = []
@@ -182,7 +182,7 @@ def defense(
         save_gradients=False,
         name_to_save=f"batch_{batch_idx}",
         similarity=similarity,
-        sim_threshold=sim_threshold,
+        threshold=threshold,
     )
 
     # Apply the aggregated gradients

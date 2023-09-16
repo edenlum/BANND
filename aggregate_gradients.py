@@ -121,7 +121,7 @@ def aggregate_all_params(
     plot=False,
     save_gradients=False,
     name_to_save="gradients_labels_poisoned",
-    sim_threshold=0,
+    threshold=0,
 ):
     """
     This function first combines all the gradients for all parameters into one big vector (for each sample).
@@ -172,23 +172,23 @@ def aggregate_all_params(
             torch.flatten(c_grads, start_dim=1), torch.flatten(c_mean, start_dim=1)
         )
 
-        if sim_threshold > 0:
-            if sim_threshold >= 2:
-                sim_threshold = similarities.quantile((sim_threshold - 2))
+        if threshold > 0:
+            if threshold >= 2:
+                threshold = similarities.quantile((threshold - 2))
 
             for i in similarities[is_poisoned[(labels == c).cpu()]]:
-                if i <= sim_threshold:
+                if i <= threshold:
                     num_of_pois_samples_turned_off += 1
 
             for i in similarities[~is_poisoned[(labels == c).cpu()]]:
-                if i <= sim_threshold:
+                if i <= threshold:
                     num_of_benign_samples_turned_off += 1
 
             total_bad_sims += similarities[is_poisoned[(labels == c).cpu()]].size(0)
             total_good_sims += similarities[~is_poisoned[(labels == c).cpu()]].size(0)
 
             m = torch.nn.Threshold(
-                sim_threshold, 0
+                threshold, 0
             )  # We assumne that under x % of similarity we only get poisoned samples. This zeroes them.
             similarities = m(similarities)
 

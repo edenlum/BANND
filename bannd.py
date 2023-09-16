@@ -1,5 +1,6 @@
 import argparse
 import random
+from typing import Literal
 
 import numpy as np
 import torch
@@ -70,30 +71,46 @@ def get_data_loaders(
 
 
 def bannd(
-    runtype,
-    dataset="MNIST",
-    inplace_or_merge=settings.DEFAULT_INPLACE_OR_MERGE,
-    batch_size=settings.DEFAULT_BATCH_SIZE,
-    poison_rate=settings.DEFAULT_POISON_RATE,
-    save_name=None,
-    epochs=settings.DEFAULT_TRAINING_EPOCHS,
-    calc_every_n_iter=10,
-    calc_stats_on="test",
-    similarity="cosine",
-    sim_threshold=0,
+    runtype: Literal["baseline", "attack", "defense"],
+    dataset: Literal["MNIST", "CIFAR10"] = "MNIST",
+    # inplace_or_merge=settings.DEFAULT_INPLACE_OR_MERGE,
+    # batch_size=settings.DEFAULT_BATCH_SIZE,
+    poison_rate: float = settings.DEFAULT_POISON_RATE,
+    # save_name=None,
+    # epochs=settings.DEFAULT_TRAINING_EPOCHS,
+    # calc_every_n_iter=10,
+    # calc_stats_on="test",
+    # similarity="cosine",
+    threshold: float = 0,
 ):
     run_title = "_".join(
         [
             runtype,
             dataset,
-            f"p{poison_rate}-{inplace_or_merge}",
-            f"e{epochs}",
-            f"b{batch_size}",
-            f"every-{calc_every_n_iter}-on-{calc_stats_on}",
+            *([f"p{poison_rate}"] if runtype in ["attack", "defense"] else []),
+            *([f"t{threshold}"] if runtype == "defense" else []),
+            # f"p{poison_rate}-{inplace_or_merge}",
+            # f"e{epochs}",
+            # f"b{batch_size}",
+            # f"s-{similarity}",
+            # f"every-{calc_every_n_iter}-on-{calc_stats_on}",
         ]
     )
 
     print(bold(f"title: {run_title}"))
+
+    inplace_or_merge = settings.DEFAULT_INPLACE_OR_MERGE
+    batch_size = settings.DEFAULT_BATCH_SIZE
+    epochs = settings.DEFAULT_TRAINING_EPOCHS
+    calc_every_n_iter = 10
+    calc_stats_on = "test"
+    similarity = "cosine"
+
+    print(
+        bold(
+            f"using default configurations (not part of title, for brevity): p-{inplace_or_merge}_e{epochs}_b{batch_size}_s-{similarity}_every-{calc_every_n_iter}-on-{calc_stats_on}"
+        )
+    )
 
     if dataset == "MNIST":
         dataset = datasets.MNIST
@@ -133,7 +150,7 @@ def bannd(
         epochs=epochs,
         defend=runtype == "defense",
         similarity=similarity,
-        sim_threshold=sim_threshold,
+        threshold=threshold,
         #
         train_loader=train_loader,
         test_loader_clean=test_loader_clean,
@@ -143,14 +160,14 @@ def bannd(
         model_file_name=f"cnn_{run_title}",
         #
         should_save_stats=True,
-        stats_file_name=save_name or f"stats_{run_title}",
+        stats_file_name=f"stats_{run_title}",
         calc_stats_every_nth_iter=calc_every_n_iter,
         calc_stats_on_train_or_test=calc_stats_on,
     )
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train and evaluate a neural network.")
+    parser = argparse.ArgumentParser(description="Train, attack, and defend a CNN.")
     parser.add_argument(
         "--runtype", choices=["baseline", "attack", "defense"], help="Type of run"
     )
@@ -160,74 +177,74 @@ def main():
         default="MNIST",
         help="Dataset to use (default: %(default)s)",
     )
-    parser.add_argument(
-        "--inplace_or_merge",
-        choices=["inplace", "merge"],
-        default=settings.DEFAULT_INPLACE_OR_MERGE,
-        help="Inplace or merge operation (default: %(default)s)",
-    )
-    parser.add_argument(
-        "--batch_size",
-        type=int,
-        default=settings.DEFAULT_BATCH_SIZE,
-        help="Batch size for training (default: %(default)d)",
-    )
+    # parser.add_argument(
+    #     "--inplace_or_merge",
+    #     choices=["inplace", "merge"],
+    #     default=settings.DEFAULT_INPLACE_OR_MERGE,
+    #     help="Inplace or merge operation (default: %(default)s)",
+    # )
+    # parser.add_argument(
+    #     "--batch_size",
+    #     type=int,
+    #     default=settings.DEFAULT_BATCH_SIZE,
+    #     help="Batch size for training (default: %(default)d)",
+    # )
     parser.add_argument(
         "--poison_rate",
         type=float,
         default=settings.DEFAULT_POISON_RATE,
         help="Rate of poisoned samples in the dataset (default: %(default)f)",
     )
+    # parser.add_argument(
+    #     "--save_name",
+    #     type=str,
+    #     default=None,
+    #     help="Save name for statistics (default: stats_{run_title}_accuracy_and_attack_success_rate)",
+    # )
+    # parser.add_argument(
+    #     "--epochs",
+    #     type=int,
+    #     default=settings.DEFAULT_TRAINING_EPOCHS,
+    #     help="Number of epochs to run training (default: %(default)d)",
+    # )
+    # parser.add_argument(
+    #     "--calc_every_n_iter",
+    #     type=int,
+    #     default=10,
+    #     help="Save stats every given number of batches (default: %(default)d)",
+    # )
+    # parser.add_argument(
+    #     "--calc-stats-on",
+    #     choices=["test", "train"],
+    #     default="test",
+    #     help="Calculate stats (accuracy, attack success rate) on test/train dataset (default: %(default)s)",
+    # )
+    # parser.add_argument(
+    #     "--similarity",
+    #     choices=["cosine", "l2"],
+    #     default="cosine",
+    #     help="Choose the similarity function (default: %(default)s)",
+    # )
     parser.add_argument(
-        "--save_name",
-        type=str,
-        default=None,
-        help="Save name for statistics (default: stats_{run_title}_accuracy_and_attack_success_rate)",
-    )
-    parser.add_argument(
-        "--epochs",
-        type=int,
-        default=settings.DEFAULT_TRAINING_EPOCHS,
-        help="Number of epochs to run training (default: %(default)d)",
-    )
-    parser.add_argument(
-        "--calc_every_n_iter",
-        type=int,
-        default=10,
-        help="Save stats every given number of batches (default: %(default)d)",
-    )
-    parser.add_argument(
-        "--calc-stats-on",
-        choices=["test", "train"],
-        default="test",
-        help="Calculate stats (accuracy, attack success rate) on test/train dataset (default: %(default)s)",
-    )
-    parser.add_argument(
-        "--similarity",
-        choices=["cosine", "l2"],
-        default="cosine",
-        help="Choose the similarity function (default: %(default)s)",
-    )
-    parser.add_argument(
-        "--sim-threshold",
+        "--threshold",
         type=float,
-        default=0,
-        help="Zero samples which have similarity less than sim_threshold",
+        default=settings.DEFAULT_POISON_RATE,
+        help="Threshold to discard samples that have less than that in their similarity score. `softmax()` is applied to the samples according to their similarity score after applying the threshold. Pass `0` for no threshold, i.e., use all samples. (default: %(default)f)",
     )
     args = parser.parse_args()
 
     bannd(
         args.runtype,
         args.dataset,
-        args.inplace_or_merge,
-        args.batch_size,
+        # args.inplace_or_merge,
+        # args.batch_size,
         args.poison_rate,
-        args.save_name,
-        args.epochs,
-        args.calc_every_n_iter,
-        args.calc_stats_on,
-        args.similarity,
-        args.sim_threshold,
+        # args.save_name,
+        # args.epochs,
+        # args.calc_every_n_iter,
+        # args.calc_stats_on,
+        # args.similarity,
+        args.threshold,
     )
 
 
