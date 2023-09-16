@@ -80,7 +80,7 @@ def bannd(
     calc_every_n_iter=10,
     calc_stats_on="test",
     similarity="cosine",
-    sim_threshold = 0,
+    sim_threshold=0,
 ):
     run_title = "_".join(
         [
@@ -132,8 +132,8 @@ def bannd(
         model=model,
         epochs=epochs,
         defend=runtype == "defense",
-        similarity = similarity,
-        sim_threshold= sim_threshold,
+        similarity=similarity,
+        sim_threshold=sim_threshold,
         #
         train_loader=train_loader,
         test_loader_clean=test_loader_clean,

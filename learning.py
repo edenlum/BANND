@@ -1,8 +1,8 @@
 from typing import Literal, Optional
 
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
@@ -87,7 +87,16 @@ def train(
             loss = criterion(outputs, labels)
 
             if defend:
-                avg_weight_poisoned = defense(loss, optimizer, model, labels, is_poisoned, i, similarity, sim_threshold)
+                avg_weight_poisoned = defense(
+                    loss,
+                    optimizer,
+                    model,
+                    labels,
+                    is_poisoned,
+                    i,
+                    similarity,
+                    sim_threshold,
+                )
             else:
                 # Backward pass and optimization
                 optimizer.zero_grad()
@@ -112,7 +121,9 @@ def train(
                 if defend:
                     avg_weight_poisoned_list.append(avg_weight_poisoned)
                     tqdm.write(
-                        green(f"i={i}: accuracy {accuracy}, attack success rate {rate}, avg_weight_poisoned {avg_weight_poisoned}")
+                        green(
+                            f"i={i}: accuracy {accuracy}, attack success rate {rate}, avg_weight_poisoned {avg_weight_poisoned}"
+                        )
                     )
                 else:
                     tqdm.write(
@@ -122,13 +133,27 @@ def train(
     print("done training!")
 
     if should_save_stats:
-        save_stats_plots(stats_file_name, accuracies, attack_success_rates, avg_weight_poisoned_list if defend else None)
+        save_stats_plots(
+            stats_file_name,
+            accuracies,
+            attack_success_rates,
+            avg_weight_poisoned_list if defend else None,
+        )
 
     if should_save_model:
         save_model(model, model_file_name)
 
 
-def defense(losses, optimizer, model, labels, is_poisoned=None, batch_idx=1, similarity="cosine", sim_threshold=0):
+def defense(
+    losses,
+    optimizer,
+    model,
+    labels,
+    is_poisoned=None,
+    batch_idx=1,
+    similarity="cosine",
+    sim_threshold=0,
+):
     # Initialize a list to hold the gradients for each sample
     gradients = []
 
@@ -143,7 +168,7 @@ def defense(losses, optimizer, model, labels, is_poisoned=None, batch_idx=1, sim
         )
 
     if similarity == "l2":
-        similarity = lambda grads, mean: torch.norm(grads-mean, dim=1)
+        similarity = lambda grads, mean: torch.norm(grads - mean, dim=1)
     elif similarity == "cosine":
         similarity = F.cosine_similarity
     else:
@@ -153,7 +178,7 @@ def defense(losses, optimizer, model, labels, is_poisoned=None, batch_idx=1, sim
         gradients,
         labels,
         is_poisoned,
-        plot=(batch_idx==0),
+        plot=(batch_idx == 0),
         save_gradients=False,
         name_to_save=f"batch_{batch_idx}",
         similarity=similarity,
@@ -167,4 +192,3 @@ def defense(losses, optimizer, model, labels, is_poisoned=None, batch_idx=1, sim
     optimizer.step()
 
     return avg_weight_poisoned
-
