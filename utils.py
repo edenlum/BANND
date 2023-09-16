@@ -4,6 +4,7 @@ import pickle
 from textwrap import wrap
 
 import torch
+import numpy as np
 from matplotlib import pyplot as plt
 
 
@@ -105,11 +106,20 @@ def save_stats_plots(
 
     plt.subplots_adjust(top=0.8)
 
-    path = f"plots/{file_name}.png"
+    path = f"/content/drive/MyDrive/sim_threshold_results/{file_name}.png"
     print(blue(f"saving stats (model accuracies and attack success rates) to {path}"))
     plt.savefig(path)
 
     plt.close()
+
+
+def plot_sim_scores(file_name, grads, is_poisoned, class_title):
+    plt.title(f"AVG Gradient Similarity Score for class {class_title}")
+    grads_indices = np.arange(grads.size(0))
+    print(grads_indices)
+    plt.scatter(grads_indices, grads, c=is_poisoned)
+    path = f"plots/{file_name}.png"
+    plt.savefig(path)
 
 
 def save_model(model, file_name):
